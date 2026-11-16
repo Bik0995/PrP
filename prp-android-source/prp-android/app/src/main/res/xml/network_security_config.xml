@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Seules les autorités de certification du système sont acceptées : un certificat ajouté
+     par l'utilisateur ne peut pas servir à falsifier la réponse des relais drand. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

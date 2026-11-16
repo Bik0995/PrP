@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PrP</string>
+    <string name="garde_nom">PrP – Garde</string>
+    <string name="garde_description">Lit l\'adresse affichée par les navigateurs pour bloquer les sites pour adultes. Rien n\'est enregistré ni envoyé : la vérification se fait sur le téléphone.</string>
+</resources>

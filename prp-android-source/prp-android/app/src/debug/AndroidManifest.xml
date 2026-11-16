@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Version d'essai : installable avec « adb install -t », et le rôle de propriétaire
+         peut être retiré par « adb shell dpm remove-active-admin org.prp.android/.AdminReceiver ». -->
+    <application android:testOnly="true" />
+</manifest>
