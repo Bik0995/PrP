@@ -15,6 +15,7 @@ import android.provider.Browser
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.prp.android.filtre.Filtre
+import org.prp.android.detection.Detection
 import org.prp.android.filtre.Verdict
 import java.util.concurrent.Executors
 
@@ -35,6 +36,7 @@ class GardeService : AccessibilityService() {
     private var dernierHote = ""
     private var dernierBlocage = 0L
     private var recepteurInscrit = false
+    private var detection: Detection? = null
 
     private val examen = Runnable {
         examenPrevu = false
@@ -76,6 +78,15 @@ class GardeService : AccessibilityService() {
         recepteurInscrit = true
         Gardien.programmer(this)
         principal.post(tic)
+        instance = this
+        detection = Detection(this)
+        majDetection()
+    }
+
+    /** Démarre ou arrête la détection d'images selon le réglage. */
+    fun majDetection() {
+        val d = detection ?: return
+        if (Etat(this).detectionActive) d.demarrer() else d.arreter()
     }
 
     /** Toutes les applications capables d'ouvrir une page web quelconque = les navigateurs. */
@@ -88,6 +99,9 @@ class GardeService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val paquet = event?.packageName?.toString() ?: return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            (paquet != packageName || event.className?.toString()?.endsWith("Activity") == true)
+        ) detection?.surPaquet(paquet)
         if (filtre == null || paquet == packageName || paquet !in navigateurs) return
         // Un seul examen à la fois, légèrement différé : on lit l'état final de la page.
         if (!examenPrevu) {
@@ -154,7 +168,7 @@ class GardeService : AccessibilityService() {
                     Intent(this, BloqueActivity::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         .putExtra(BloqueActivity.HOTE, v.hote)
-                        .putExtra(BloqueActivity.RAISON, v.raison?.libelle ?: ""),
+                        .putExtra(BloqueActivity.RAISON, v.raison?.name ?: ""),
                 )
             } catch (e: Exception) { /* l'essentiel est fait : la page a été remplacée */ }
         }, 300L)
@@ -175,6 +189,8 @@ class GardeService : AccessibilityService() {
     /** Si quelqu'un coupe la garde pendant le verrou, elle se réactive aussitôt. */
     private fun arreter() {
         principal.removeCallbacksAndMessages(null)
+        detection?.fermer()
+        if (instance === this) instance = null
         if (recepteurInscrit) {
             recepteurInscrit = false
             try { unregisterReceiver(paquets) } catch (e: Exception) { }
@@ -188,6 +204,7 @@ class GardeService : AccessibilityService() {
     }
 
     companion object {
+        @Volatile var instance: GardeService? = null
         const val PAGE_SURE = "https://www.google.com/"
 
         /** Identifiant de la barre d'adresse des navigateurs courants. */

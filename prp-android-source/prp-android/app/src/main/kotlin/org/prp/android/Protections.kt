@@ -141,8 +141,18 @@ object Protections {
         essayer { d.removeActiveAdmin(admin(ctx)) }
     }
 
+    /** Couches de protection affichées sur l'écran principal : libellé et explication. */
+    enum class Couche(val nom: Int, val aide: Int) {
+        PROPRIETAIRE(R.string.couche_proprietaire, R.string.aide_proprietaire),
+        GARDE(R.string.couche_garde, R.string.aide_garde),
+        REACTIVATION(R.string.couche_reactivation, R.string.aide_reactivation),
+        DNS(R.string.couche_dns, R.string.aide_dns),
+        REGLAGES(R.string.couche_reglages, R.string.aide_reglages),
+        MODELE(R.string.couche_modele, R.string.aide_modele),
+    }
+
     /** État de chaque couche, pour l'écran principal. */
-    fun diagnostic(ctx: Context): List<Pair<String, Boolean>> {
+    fun diagnostic(ctx: Context): List<Pair<Couche, Boolean>> {
         val d = dpm(ctx)
         val a = admin(ctx)
         val proprio = estProprietaire(ctx)
@@ -154,13 +164,16 @@ object Protections {
             val b = d.getUserRestrictions(a)
             b.getBoolean(UserManager.DISALLOW_FACTORY_RESET) && b.getBoolean(UserManager.DISALLOW_SAFE_BOOT)
         } catch (e: Exception) { false }
+        val detection = if (Build.VERSION.SDK_INT >= 30)
+            listOf(Couche.MODELE to org.prp.android.detection.DiagDetection.modeleCharge)
+        else emptyList()
         return listOf(
-            "Propriétaire de l'appareil" to proprio,
-            "Garde des navigateurs" to Gardien.gardeActive(ctx),
-            "Réactivation automatique de la garde" to Gardien.peutReactiver(ctx),
-            "DNS privé familial (strict)" to dnsStrict,
-            "Réglages système verrouillés" to verrous,
-        )
+            Couche.PROPRIETAIRE to proprio,
+            Couche.GARDE to Gardien.gardeActive(ctx),
+            Couche.REACTIVATION to Gardien.peutReactiver(ctx),
+            Couche.DNS to dnsStrict,
+            Couche.REGLAGES to verrous,
+        ) + detection
     }
 
     private inline fun essayer(f: () -> Unit) {

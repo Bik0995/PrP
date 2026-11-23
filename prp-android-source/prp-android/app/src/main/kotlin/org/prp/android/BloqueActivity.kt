@@ -1,46 +1,47 @@
 package org.prp.android
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import org.prp.android.filtre.Raison
 
 /** Écran affiché à la place d'un site bloqué. */
 class BloqueActivity : Activity() {
-    private lateinit var detail: TextView
+    private lateinit var hoteVue: TextView
+    private lateinit var motifVue: TextView
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(Apparence.envelopper(base))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val m = (24 * resources.displayMetrics.density).toInt()
+        val pal = Apparence.palette(this)
+        val v = Vues(this, pal)
+        window.statusBarColor = pal.fond
+        window.navigationBarColor = pal.fond
+
         val boite = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(m, m, m, m)
-            setBackgroundColor(Color.rgb(31, 58, 95))
+            setPadding(v.dp(24), v.dp(24), v.dp(24), v.dp(24))
+            setBackgroundColor(pal.fond)
         }
-        boite.addView(TextView(this).apply {
-            text = "Site bloqué par PrP"
-            textSize = 26f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
+        val carte = v.carte(boite)
+        carte.gravity = Gravity.CENTER_HORIZONTAL
+        carte.addView(v.icone(R.drawable.ic_lock, pal.rouge, 56).apply {
+            (layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER_HORIZONTAL
         })
-        detail = TextView(this).apply {
-            textSize = 16f
-            setTextColor(Color.rgb(210, 222, 238))
-            gravity = Gravity.CENTER
-            setPadding(0, m, 0, m)
-        }
-        boite.addView(detail)
-        boite.addView(Button(this).apply {
-            text = "Fermer"
-            setOnClickListener { finish() }
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        v.espace(carte, 10)
+        v.texte(carte, getString(R.string.bloque_titre), 22f, pal.texte, gras = true).gravity = Gravity.CENTER
+        hoteVue = v.texte(carte, "", 16f, pal.primaire, gras = true).apply { gravity = Gravity.CENTER }
+        motifVue = v.note(carte, "").apply { gravity = Gravity.CENTER }
+        v.espace(carte, 8)
+        v.texte(carte, getString(R.string.tiens_bon), 15f, pal.vert).gravity = Gravity.CENTER
+        v.bouton(carte, getString(R.string.fermer), R.drawable.ic_cancel) { finish() }
+
         setContentView(boite)
         afficher(intent)
     }
@@ -51,13 +52,15 @@ class BloqueActivity : Activity() {
     }
 
     private fun afficher(i: Intent?) {
-        val hote = i?.getStringExtra(HOTE).orEmpty()
-        val raison = i?.getStringExtra(RAISON).orEmpty()
-        detail.text = buildString {
-            if (hote.isNotEmpty()) append(hote).append('\n')
-            if (raison.isNotEmpty()) append("Motif : ").append(raison).append('\n')
-            append("\nTu as choisi ce blocage toi-même. Tiens bon.")
+        hoteVue.text = i?.getStringExtra(HOTE).orEmpty()
+        val raison = try { Raison.valueOf(i?.getStringExtra(RAISON).orEmpty()) } catch (e: Exception) { null }
+        val libelle = when (raison) {
+            Raison.MOT_CLE -> getString(R.string.raison_mot_cle)
+            Raison.LISTE -> getString(R.string.raison_liste)
+            Raison.MOTEUR -> getString(R.string.raison_moteur)
+            null -> ""
         }
+        motifVue.text = if (libelle.isEmpty()) "" else getString(R.string.motif, libelle)
     }
 
     companion object {

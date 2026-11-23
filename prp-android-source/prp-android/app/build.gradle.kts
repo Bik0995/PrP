@@ -11,8 +11,9 @@ android {
         applicationId = "org.prp.android"
         minSdk = 29          // Android 10 : DNS privé imposé par le propriétaire de l'appareil
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0-a1"
+        versionCode = 2
+        versionName = "1.0-a2"
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
     // Clé d'ESSAI, fournie pour que toutes les compilations aient la même signature
@@ -42,8 +43,10 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     lint { abortOnError = false; checkReleaseBuilds = false }
+    androidResources { noCompress += listOf("onnx") }
 }
 
 dependencies {
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     testImplementation("junit:junit:4.13.2")
 }

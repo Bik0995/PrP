@@ -35,6 +35,26 @@ class Etat(ctx: Context) {
         get() = p.getBoolean("dns_degrade", false)
         set(v) { p.edit().putBoolean("dns_degrade", v).commit() }
 
+    /** Détection d'images à l'écran (masque sur les zones exposées). */
+    var detectionActive: Boolean
+        get() = p.getBoolean("detection", true)
+        set(v) { p.edit().putBoolean("detection", v).commit() }
+
+    /** 0 = stricte, 1 = normale, 2 = souple. */
+    var sensibilite: Int
+        get() = p.getInt("sensibilite", 1)
+        set(v) { p.edit().putInt("sensibilite", v.coerceIn(0, 2)).commit() }
+
+    /** Langue de l'interface : "" = celle du téléphone, sinon "fr", "en" ou "ru". */
+    var langue: String
+        get() = p.getString("langue", "") ?: ""
+        set(v) { p.edit().putString("langue", v).commit() }
+
+    /** Thème : 0 = comme le téléphone, 1 = clair, 2 = sombre. */
+    var theme: Int
+        get() = p.getInt("theme", 0)
+        set(v) { p.edit().putInt("theme", v.coerceIn(0, 2)).commit() }
+
     var echecsReseau: Int
         get() = p.getInt("echecs_reseau", 0)
         set(v) { p.edit().putInt("echecs_reseau", v).commit() }
