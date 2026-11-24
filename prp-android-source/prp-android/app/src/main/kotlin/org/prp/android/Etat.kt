@@ -35,9 +35,9 @@ class Etat(ctx: Context) {
         get() = p.getBoolean("dns_degrade", false)
         set(v) { p.edit().putBoolean("dns_degrade", v).commit() }
 
-    /** Détection d'images à l'écran (masque sur les zones exposées). */
+    /** Détection d'images à l'écran : éteinte tant qu'on ne l'allume pas ; le verrou l'allume. */
     var detectionActive: Boolean
-        get() = p.getBoolean("detection", true)
+        get() = p.getBoolean("detection", false)
         set(v) { p.edit().putBoolean("detection", v).commit() }
 
     /** 0 = stricte, 1 = normale, 2 = souple. */

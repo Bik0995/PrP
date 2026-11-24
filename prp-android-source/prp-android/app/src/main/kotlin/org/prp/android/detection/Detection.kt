@@ -265,17 +265,67 @@ class Detection(private val service: AccessibilityService) {
         }
     } catch (e: Exception) { null }
 
-    /** Associe chaque détection à l'image entière qui la contient ; sinon, masque la zone seule. */
-    private fun placer(visees: List<Boite>, capture: Bitmap, sens: Int) {
+    /**
+     * Revoit chaque suspect de près : la région analysée est l'image entière qui le contient
+     * (ou, à défaut, la zone agrandie), passée seule au modèle, donc en bien plus grand.
+     * Ne garde que les détections confirmées, avec l'indice de leur image (-1 si aucune).
+     */
+    private fun verifier(
+        d: Detecteur, capture: Bitmap, suspects: List<Boite>,
+        images: List<Pair<AccessibilityNodeInfo, Zone>>, sens: Int,
+    ): Pair<List<Pair<Boite, Int>>, Long> {
         val aireEcran = capture.width.toFloat() * capture.height.toFloat()
-        val images = noeudsImages()
         val cadres = images.map { it.second }
+        val regions = LinkedHashMap<String, Pair<Zone, Int>>()
+        for (b in suspects) {
+            val zb = Zone(b.x, b.y, b.droite, b.bas)
+            val i = Cadres.choisir(zb, cadres, aireEcran)
+            val z = if (i >= 0) cadres[i] else {
+                val mx = maxOf(b.l, 120f)
+                val my = maxOf(b.h, 120f)
+                Zone(b.x - mx, b.y - my, b.droite + mx, b.bas + my)
+            }
+            val zc = Zone(
+                z.g.coerceIn(0f, capture.width.toFloat()), z.h.coerceIn(0f, capture.height.toFloat()),
+                z.d.coerceIn(0f, capture.width.toFloat()), z.b.coerceIn(0f, capture.height.toFloat()),
+            )
+            regions.getOrPut("${zc.g.toInt()},${zc.h.toInt()},${zc.d.toInt()},${zc.b.toInt()}") { zc to i }
+        }
+        val res = ArrayList<Pair<Boite, Int>>()
+        var ms = 0L
+        for ((z, i) in regions.values.take(MAX_VERIFS)) {
+            val x = z.g.toInt()
+            val y = z.h.toInt()
+            val rl = (z.d - z.g).toInt()
+            val rh = (z.b - z.h).toInt()
+            if (rl < 16 || rh < 16) continue
+            val (l, h) = Yolo.dimensionsEntree(rl, rh)
+            val morceau = Bitmap.createBitmap(capture, x, y, rl, rh)
+            val reduit = Bitmap.createScaledBitmap(morceau, l, h, true)
+            if (morceau !== reduit) morceau.recycle()
+            val px = IntArray(l * h)
+            reduit.getPixels(px, 0, l, 0, 0, l, h)
+            reduit.recycle()
+            val r = d.detecter(px, l, h, rl.toFloat(), rh.toFloat())
+            ms += r.msInference
+            for (b in r.boites) {
+                if (!Classes.visee(b.classe) || b.score < Classes.seuil(b.classe, sens)) continue
+                res.add(Boite(b.x + x, b.y + y, b.l, b.h, b.classe, b.score) to i)
+            }
+        }
+        return res to ms
+    }
+
+    /** Masque l'image entière qui contient chaque détection confirmée ; sinon, la zone seule. */
+    private fun placer(
+        visees: List<Pair<Boite, Int>>, images: List<Pair<AccessibilityNodeInfo, Zone>>,
+        capture: Bitmap, sens: Int,
+    ) {
         val seules = ArrayList<Boite>()
-        for (b in visees) {
+        for ((b, i) in visees) {
             val zb = Zone(b.x, b.y, b.droite, b.bas)
             if (cibles.any { it.visible && Cadres.contientCentre(it.zone, zb) }) continue
-            val i = Cadres.choisir(zb, cadres, aireEcran)
-            if (i < 0) { seules.add(b); continue }
+            if (i < 0 || i >= images.size) { seules.add(b); continue }
             val (noeud, zone) = images[i]
             val existante = cibles.firstOrNull { it.noeud == noeud }
             if (existante != null) { existante.visible = true; existante.zone = zone; continue }
@@ -429,18 +479,29 @@ class Detection(private val service: AccessibilityService) {
             }
             val res = d.detecter(pixels, l, h, ecranL.toFloat(), ecranH.toFloat())
             DiagDetection.analyses++
-            DiagDetection.dernierMs = res.msInference
+            var ms = res.msInference
             val sens = etat.sensibilite
-            val visees = res.boites.filter { Classes.visee(it.classe) && it.score >= Classes.seuil(it.classe, sens) }
-            DiagDetection.dernierDetail = visees.joinToString { "${Classes.NOMS[it.classe]} ${(it.score * 100).toInt()}%" }
+            val suspects = res.boites.filter { Classes.visee(it.classe) && it.score >= Classes.seuilSuspect(it.classe, sens) }
+            var visees = emptyList<Pair<Boite, Int>>()
+            var images = emptyList<Pair<AccessibilityNodeInfo, Zone>>()
+            if (suspects.isNotEmpty()) {
+                // 2e passage : chaque suspect est revu de près, sur l'image qui le contient
+                images = noeudsImages()
+                val (confirmees, msVerif) = verifier(d, capture, suspects, images, sens)
+                visees = confirmees
+                ms += msVerif
+            }
+            DiagDetection.dernierMs = ms
+            DiagDetection.dernierDetail = visees.joinToString { "${Classes.NOMS[it.first.classe]} ${(it.first.score * 100).toInt()}%" }
             DiagDetection.dernier = if (visees.isEmpty()) Analyse.RIEN else Analyse.MASQUE
             if (visees.isNotEmpty()) {
                 val c = capture
+                val im = images
                 capture = null                                  // l'image passe au fil principal, qui la libérera
                 principal.post {
                     try {
                         if (actif) {
-                            placer(visees, c, sens)
+                            placer(visees, im, c, sens)
                             rafraichirVue()
                         }
                     } finally {
@@ -479,6 +540,7 @@ class Detection(private val service: AccessibilityService) {
         const val SEUIL_CHANGEMENT = 0.004f
         const val MAX_NOEUDS = 2500
         const val MAX_CIBLES = 40
+        const val MAX_VERIFS = 4
         private val IGNORES = setOf("com.android.systemui")
     }
 }

@@ -51,6 +51,21 @@ class DetectionTest {
         assertEquals(4, r[1].classe)
     }
 
+    @Test fun torseDHommePasPrisPourUnePoitrine() {
+        val n = 2
+        val s = sortie(n) { t ->
+            fun poser(i: Int, cx: Float, cy: Float) { t[i] = cx; t[n + i] = cy; t[2 * n + i] = 60f; t[3 * n + i] = 60f }
+            poser(0, 100f, 200f); poser(1, 250f, 500f)
+            t[(4 + 3) * n + 0] = 0.70f; t[(4 + 5) * n + 0] = 0.50f   // hésite avec « torse d'homme » : homme
+            t[(4 + 3) * n + 1] = 0.70f; t[(4 + 5) * n + 1] = 0.10f   // nette : reste une poitrine de femme
+        }
+        val r = Yolo.decoder(s, n, 320, 704, 320f, 704f)
+        assertEquals(2, r.size)
+        assertEquals(5, r.first { it.x < 150f }.classe)
+        assertEquals(3, r.first { it.x > 150f }.classe)
+        assertFalse(Classes.visee(5))
+    }
+
     @Test fun bordsDeLImage() {
         val n = 1
         val s = sortie(n) { t -> t[0] = 5f; t[1] = 5f; t[2] = 40f; t[3] = 40f; t[(4 + 14) * n] = 0.8f }
@@ -88,7 +103,7 @@ class DetectionTest {
     }
 
     @Test fun sensibilite() {
-        val b = listOf(boite(400f, 800f, 200f, 200f, 3, 0.35f))
+        val b = listOf(boite(400f, 800f, 200f, 200f, 3, 0.50f))   // seuil normal 0,55 ; strict 0,45
         assertEquals(1, ControleurMasque().mettreAJour(b, 1000f, 2000f, 0, 0L))   // stricte : masque
         assertEquals(0, ControleurMasque().mettreAJour(b, 1000f, 2000f, 1, 0L))   // normale : non
         assertEquals(0, ControleurMasque().mettreAJour(b, 1000f, 2000f, 2, 0L))

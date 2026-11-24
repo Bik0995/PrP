@@ -17,14 +17,20 @@ object Classes {
      * Visages, ventre, pieds, aisselles et parties couvertes ne masquent jamais rien.
      */
     private val SEUILS = mapOf(
-        4 to 0.30f,   // FEMALE_GENITALIA_EXPOSED
-        14 to 0.30f,  // MALE_GENITALIA_EXPOSED
-        6 to 0.30f,   // ANUS_EXPOSED
-        3 to 0.40f,   // FEMALE_BREAST_EXPOSED
-        2 to 0.45f,   // BUTTOCKS_EXPOSED
+        4 to 0.45f,   // FEMALE_GENITALIA_EXPOSED
+        14 to 0.45f,  // MALE_GENITALIA_EXPOSED
+        6 to 0.45f,   // ANUS_EXPOSED
+        3 to 0.55f,   // FEMALE_BREAST_EXPOSED (un torse d'homme ne doit pas suffire)
+        2 to 0.60f,   // BUTTOCKS_EXPOSED (un short de sport ne doit pas suffire)
     )
 
     fun visee(classe: Int): Boolean = classe in SEUILS
+
+    const val POITRINE_F = 3
+    const val POITRINE_H = 5
+
+    /** Seuil de premier repérage sur tout l'écran ; chaque suspect est ensuite revérifié de près. */
+    fun seuilSuspect(classe: Int, sensibilite: Int): Float = (seuil(classe, sensibilite) - 0.15f).coerceAtLeast(0.25f)
 
     /** Sensibilité : 0 = stricte (masque plus facilement), 1 = normale, 2 = souple. */
     fun seuil(classe: Int, sensibilite: Int): Float {

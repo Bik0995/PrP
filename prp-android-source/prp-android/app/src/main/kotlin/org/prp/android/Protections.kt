@@ -164,7 +164,7 @@ object Protections {
             val b = d.getUserRestrictions(a)
             b.getBoolean(UserManager.DISALLOW_FACTORY_RESET) && b.getBoolean(UserManager.DISALLOW_SAFE_BOOT)
         } catch (e: Exception) { false }
-        val detection = if (Build.VERSION.SDK_INT >= 30)
+        val detection = if (Build.VERSION.SDK_INT >= 30 && Etat(ctx).detectionActive)
             listOf(Couche.MODELE to org.prp.android.detection.DiagDetection.modeleCharge)
         else emptyList()
         return listOf(

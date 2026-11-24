@@ -20,6 +20,8 @@ data class Boite(
 object Yolo {
     const val SEUIL_CANDIDAT = 0.25f
     const val SEUIL_IOU = 0.45f
+    /** Une « poitrine de femme » dont le score « torse d'homme » atteint cette part est un torse d'homme. */
+    const val RAPPORT_HOMME = 0.5f
 
     /**
      * Taille d'entrée du modèle pour un écran donné : le petit côté vaut [court], le grand côté
@@ -56,6 +58,9 @@ object Yolo {
                 if (v > score) { score = v; meilleure = c }
             }
             if (score < SEUIL_CANDIDAT) continue
+            // Torse d'homme pris pour une poitrine de femme : si le modèle hésite, on retient l'homme.
+            if (meilleure == Classes.POITRINE_F && sortie[(4 + Classes.POITRINE_H) * ancres + i] >= score * RAPPORT_HOMME)
+                meilleure = Classes.POITRINE_H
             val cx = sortie[i]
             val cy = sortie[ancres + i]
             val w = sortie[2 * ancres + i]
