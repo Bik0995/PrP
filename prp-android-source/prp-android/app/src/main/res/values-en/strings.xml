@@ -35,7 +35,7 @@
     <string name="proprio_titre">Step 2: make PrP unremovable</string>
     <string name="proprio_attente">Meanwhile, browser filtering works, but it can be turned off.</string>
     <string name="detection_titre">Image detection</string>
-    <string name="detection_texte">Masks exposed areas on screen, in every app. Everything is analysed on the phone: no image is stored or sent.</string>
+    <string name="detection_texte">Blurs the whole image as soon as an exposed part is spotted in it, in every app. The blur follows the image when you scroll and comes back when it reappears. Everything is analysed on the phone: no image is stored or sent.</string>
     <string name="detection_android11">Requires Android 11 or newer. Site blocking still works.</string>
     <string name="detection_active">Detection on</string>
     <string name="sensibilite">Sensitivity</string>
@@ -54,7 +54,7 @@
     <string name="an_inchange">screen unchanged: analysis skipped</string>
     <string name="an_rien">nothing to mask</string>
     <string name="an_masque">masked: %1$s</string>
-    <string name="mesure_oui">The mask shows up in this phone\'s screenshots: it disappears for an instant every 2 seconds to re-check the screen.</string>
+    <string name="mesure_oui">Masks show up in this phone\'s screenshots. Blurred images stay in place; only areas with no recognised image disappear for an instant every 2 seconds to re-check the screen.</string>
     <string name="mesure_non">The mask does not show up in screenshots (ideal case).</string>
     <string name="mesure_inconnue">Not measured yet (it happens at the first mask).</string>
     <string name="diag_erreur">Error: %1$s</string>

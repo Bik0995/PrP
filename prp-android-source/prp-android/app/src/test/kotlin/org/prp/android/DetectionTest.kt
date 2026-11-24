@@ -101,16 +101,42 @@ class DetectionTest {
         assertEquals(1, c.actives(10L).size)
         assertTrue(c.actives(10L).single().aire < 0.30f)
         // trois zones séparées : tout l'écran
-        val d = ControleurMasque(tenueMs = 1000)
+        val d = ControleurMasque(tenueMs = 1000, aireMax = 0.30f, nbMax = 3)
         d.mettreAJour(listOf(
             boite(10f, 10f, 60f, 60f, 4, 0.9f), boite(500f, 900f, 60f, 60f, 4, 0.9f), boite(800f, 1700f, 60f, 60f, 4, 0.9f),
         ), 1000f, 2000f, 1, 0L)
         assertEquals(1, d.actives(10L).size)
         assertEquals(1f, d.actives(10L).single().aire, 0.001f)
         // une zone qui occupe plus de 30 % de l'écran : tout l'écran aussi
-        val e = ControleurMasque(tenueMs = 1000)
+        val e = ControleurMasque(tenueMs = 1000, aireMax = 0.30f, nbMax = 3)
         e.mettreAJour(listOf(boite(100f, 200f, 700f, 1000f, 3, 0.9f)), 1000f, 2000f, 1, 0L)
         assertEquals(1f, e.actives(10L).single().aire, 0.001f)
+    }
+
+    @Test fun jamaisPleinEcranParDefaut() {
+        val c = ControleurMasque(tenueMs = 1000)
+        c.mettreAJour(listOf(
+            boite(10f, 10f, 60f, 60f, 4, 0.9f), boite(500f, 900f, 60f, 60f, 4, 0.9f), boite(800f, 1700f, 60f, 60f, 4, 0.9f),
+        ), 1000f, 2000f, 1, 0L)
+        assertEquals(3, c.actives(10L).size)
+        assertTrue(c.actives(10L).all { it.aire < 0.05f })
+    }
+
+    @Test fun choixDeLImageEntiere() {
+        val ecran = 1000f * 2000f
+        val boite = org.prp.android.detection.Zone(400f, 600f, 500f, 700f)
+        val cadres = listOf(
+            org.prp.android.detection.Zone(0f, 0f, 1000f, 2000f),      // page entière : refusée
+            org.prp.android.detection.Zone(100f, 300f, 900f, 1100f),   // image qui contient la détection
+            org.prp.android.detection.Zone(420f, 620f, 480f, 680f),    // trop petite (moins de la moitié)
+            org.prp.android.detection.Zone(0f, 1200f, 1000f, 1800f),   // ailleurs
+        )
+        assertEquals(1, org.prp.android.detection.Cadres.choisir(boite, cadres, ecran))
+        // plusieurs images imbriquées : la plus petite qui convient
+        val imbriques = cadres + org.prp.android.detection.Zone(300f, 500f, 700f, 900f)
+        assertEquals(4, org.prp.android.detection.Cadres.choisir(boite, imbriques, ecran))
+        // aucune image autour : -1 (on masquera la zone seule)
+        assertEquals(-1, org.prp.android.detection.Cadres.choisir(boite, listOf(cadres[0], cadres[3]), ecran))
     }
 
     @Test fun pretraitement() {

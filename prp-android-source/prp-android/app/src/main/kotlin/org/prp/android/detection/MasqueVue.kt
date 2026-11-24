@@ -1,50 +1,68 @@
 package org.prp.android.detection
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
-import android.util.TypedValue
 import android.view.View
 
-/** Fenêtre de masque posée par-dessus tout l'écran : dessine des rectangles opaques. */
-class MasqueVue(ctx: Context) : View(ctx) {
-    private val peinture = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = COULEUR }
-    private val texte = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(200, 210, 225)
-        textAlign = Paint.Align.CENTER
-        textSize = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_SP, 14f, resources.displayMetrics,
-        )
-    }
-    private val rect = RectF()
+/** Un masque à dessiner : rectangle en pixels d'écran, image floutée facultative, et sa nature. */
+class Masque(val rect: RectF, val flou: Bitmap?, val image: Boolean)
 
-    var zones: List<Zone> = emptyList()
+/**
+ * Fenêtre posée par-dessus tout l'écran. Une image visée est recouverte par sa propre version
+ * floutée (très réduite puis agrandie), avec une pastille opaque au centre. Une zone sans image
+ * reconnue est recouverte d'un aplat opaque. La pastille et l'aplat ont la couleur [COULEUR],
+ * que la calibration sait reconnaître dans une capture d'écran.
+ */
+class MasqueVue(ctx: Context) : View(ctx) {
+    private val plein = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = COULEUR }
+    private val voile = Paint().apply { color = 0x66101820 }
+    private val dessin = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val r = RectF()
+    private val origine = IntArray(2)
+
+    var masques: List<Masque> = emptyList()
         set(v) { field = v; invalidate() }
 
-    /** Pendant une analyse, le masque s'efface une fraction de seconde pour que la capture voie l'écran réel. */
-    var cache: Boolean = false
+    /** Les aplats (zones sans image reconnue) s'effacent un instant pendant une vérification. */
+    var cacheAplats: Boolean = false
         set(v) { field = v; invalidate() }
 
     override fun onDraw(canvas: Canvas) {
-        if (cache) return
-        val w = width.toFloat()
-        val h = height.toFloat()
-        for (z in zones) {
-            rect.set(z.g * w, z.h * h, z.d * w, z.b * h)
-            canvas.drawRoundRect(rect, 28f, 28f, peinture)
-            if (rect.width() > w * 0.35f && rect.height() > h * 0.08f) {
-                canvas.drawText("Masqué par PrP", rect.centerX(), rect.centerY(), texte)
+        getLocationOnScreen(origine)
+        val dx = -origine[0].toFloat()
+        val dy = -origine[1].toFloat()
+        for (m in masques) {
+            if (!m.image && cacheAplats) continue
+            r.set(m.rect); r.offset(dx, dy)
+            val f = m.flou
+            if (m.image && f != null && !f.isRecycled) {
+                canvas.drawBitmap(f, null, r, dessin)
+                canvas.drawRect(r, voile)
+            } else {
+                canvas.drawRect(r, plein)
+            }
+            if (m.image) {
+                val p = pastille(m.rect)
+                p.offset(dx, dy)
+                canvas.drawRoundRect(p, p.width() / 4f, p.width() / 4f, plein)
             }
         }
     }
 
     companion object {
-        /** Couleur opaque du masque ; la calibration la reconnaît dans une capture (27, 35, 48). */
+        /** Couleur opaque (27, 35, 48) : aplats et pastilles. */
         const val COULEUR: Int = 0xFF1B2330.toInt()
         const val R = 27
         const val G = 35
         const val B = 48
+
+        /** Pastille centrale d'un masque d'image, en pixels d'écran. */
+        fun pastille(rect: RectF): RectF {
+            val c = (minOf(rect.width(), rect.height()) * 0.3f).coerceAtLeast(8f)
+            return RectF(rect.centerX() - c / 2f, rect.centerY() - c / 2f, rect.centerX() + c / 2f, rect.centerY() + c / 2f)
+        }
     }
 }

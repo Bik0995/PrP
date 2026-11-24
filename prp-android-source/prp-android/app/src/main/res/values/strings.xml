@@ -36,7 +36,7 @@
     <string name="proprio_titre">Étape 2 : rendre PrP indélogeable</string>
     <string name="proprio_attente">En attendant, le filtrage des navigateurs fonctionne, mais il peut être désactivé.</string>
     <string name="detection_titre">Détection d\'images</string>
-    <string name="detection_texte">Masque les zones exposées à l\'écran, dans toutes les applications. Tout est analysé sur le téléphone : aucune image n\'est enregistrée ni envoyée.</string>
+    <string name="detection_texte">Floute l\'image entière dès qu\'une partie exposée y est repérée, dans toutes les applications. Le flou suit l\'image quand tu fais défiler et revient quand elle réapparaît. Tout est analysé sur le téléphone : aucune image n\'est enregistrée ni envoyée.</string>
     <string name="detection_android11">Demande Android 11 ou plus récent. Le blocage des sites fonctionne quand même.</string>
     <string name="detection_active">Détection activée</string>
     <string name="sensibilite">Sensibilité</string>
@@ -55,7 +55,7 @@
     <string name="an_inchange">écran inchangé : analyse évitée</string>
     <string name="an_rien">rien à masquer</string>
     <string name="an_masque">masqué : %1$s</string>
-    <string name="mesure_oui">Le masque apparaît dans les captures de ce téléphone : il s\'efface un instant toutes les 2 secondes pour revoir l\'écran.</string>
+    <string name="mesure_oui">Les masques apparaissent dans les captures de ce téléphone. Les images floutées restent en place ; seules les zones sans image reconnue s\'effacent un instant toutes les 2 secondes pour revoir l\'écran.</string>
     <string name="mesure_non">Le masque n\'apparaît pas dans les captures (cas idéal).</string>
     <string name="mesure_inconnue">Mesure pas encore faite (elle se fait au premier masque).</string>
     <string name="diag_erreur">Erreur : %1$s</string>

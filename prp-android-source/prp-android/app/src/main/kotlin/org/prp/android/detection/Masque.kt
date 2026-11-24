@@ -18,14 +18,15 @@ data class Zone(val g: Float, val h: Float, val d: Float, val b: Float) {
  * Décide quelles zones de l'écran sont masquées à un instant donné.
  * Chaque zone détectée est agrandie (le contexte d'une scène dépasse la partie détectée),
  * fusionnée avec ses voisines, et maintenue [tenueMs] après sa dernière confirmation :
- * le masque ne clignote donc pas entre deux analyses. Si la scène est étendue (au moins
- * [nbMax] zones séparées, ou plus de [aireMax] de l'écran), tout l'écran est masqué.
+ * le masque ne clignote donc pas entre deux analyses. Sert quand aucune image n'a été reconnue
+ * autour de la détection. Le passage en plein écran (au moins [nbMax] zones, ou plus de
+ * [aireMax] de l'écran) est désactivé par défaut : seule la partie concernée est masquée.
  * Code pur : le temps est fourni par l'appelant.
  */
 class ControleurMasque(
     var tenueMs: Long = 2500L,
-    private val aireMax: Float = 0.30f,
-    private val nbMax: Int = 3,
+    private val aireMax: Float = 2f,
+    private val nbMax: Int = Int.MAX_VALUE,
 ) {
     private class Entree(var zone: Zone, var expire: Long)
 

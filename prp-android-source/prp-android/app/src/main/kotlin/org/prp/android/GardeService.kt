@@ -99,6 +99,10 @@ class GardeService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val paquet = event?.packageName?.toString() ?: return
+        if (paquet != packageName) when (event.eventType) {
+            AccessibilityEvent.TYPE_VIEW_SCROLLED -> detection?.surDefilement()
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> detection?.surContenu()
+        }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             (paquet != packageName || event.className?.toString()?.endsWith("Activity") == true)
         ) detection?.surPaquet(paquet)
