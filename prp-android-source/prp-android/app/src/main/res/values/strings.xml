@@ -36,7 +36,7 @@
     <string name="proprio_titre">Étape 2 : rendre PrP indélogeable</string>
     <string name="proprio_attente">En attendant, le filtrage des navigateurs fonctionne, mais il peut être désactivé.</string>
     <string name="detection_titre">Détection d\'images</string>
-    <string name="detection_texte">Floute l\'image entière dès qu\'une partie exposée y est repérée, dans toutes les applications. Le flou suit l\'image quand tu fais défiler et revient quand elle réapparaît. Tout est analysé sur le téléphone : aucune image n\'est enregistrée ni envoyée.</string>
+    <string name="detection_texte">Floute l\'image ou la vidéo entière dès qu\'elle montre de la nudité : sexe, fesses nues, seins nus. Les maillots de bain, les sous-vêtements et les torses nus restent visibles. Le flou suit l\'image quand tu fais défiler. Tout est analysé sur le téléphone : aucune image n\'est enregistrée ni envoyée.</string>
     <string name="detection_android11">Demande Android 11 ou plus récent. Le blocage des sites fonctionne quand même.</string>
     <string name="detection_active">Détection activée</string>
     <string name="sensibilite">Sensibilité</string>
@@ -59,6 +59,9 @@
     <string name="mesure_non">Le masque n\'apparaît pas dans les captures (cas idéal).</string>
     <string name="mesure_inconnue">Mesure pas encore faite (elle se fait au premier masque).</string>
     <string name="diag_erreur">Erreur : %1$s</string>
+    <string name="mode_enfant">Mode enfant</string>
+    <string name="mode_enfant_texte">Floute aussi les torses nus, les maillots de bain et les sous-vêtements. Pendant le verrou, il peut être allumé mais pas éteint.</string>
+    <string name="diag_floutees">Images floutées à l\'écran : %1$d</string>
     <string name="verrouiller_titre">Verrouiller</string>
     <string name="duree_verrou">Durée du verrou</string>
     <string name="duree_aide">Avant cette échéance, rien ni personne ne peut retirer PrP.</string>

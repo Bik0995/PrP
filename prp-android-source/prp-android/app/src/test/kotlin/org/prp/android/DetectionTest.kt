@@ -66,6 +66,30 @@ class DetectionTest {
         assertFalse(Classes.visee(5))
     }
 
+    @Test fun modeEnfant() {
+        // par défaut : torse nu, maillot, sous-vêtements ne floutent jamais
+        for (c in listOf(5, 16, 0, 17)) assertFalse(Classes.visee(c))
+        // mode enfant : ils floutent
+        for (c in listOf(5, 16, 0, 17)) assertTrue(Classes.visee(c, enfant = true))
+        assertTrue(Classes.seuil(5, 1, enfant = true) < 1f)
+        assertEquals(2f, Classes.seuil(5, 1), 0.001f)
+        // la nudité reste floutée dans les deux modes ; visages et pieds jamais
+        for (c in listOf(2, 3, 4, 6, 14)) { assertTrue(Classes.visee(c)); assertTrue(Classes.visee(c, true)) }
+        for (c in listOf(1, 7, 12, 13)) assertFalse(Classes.visee(c, true))
+    }
+
+    @Test fun flouUniforme() {
+        val l = 6; val h = 4
+        val px = IntArray(l * h) { if (it % 2 == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt() }
+        val f = org.prp.android.detection.Pretraitement.flouBoite(px, l, h, 2, 2)
+        assertEquals(l * h, f.size)
+        for (v in f) {
+            assertEquals(0xFF, (v ushr 24) and 0xFF)                   // reste opaque
+            val r = (v shr 16) and 0xFF
+            assertTrue(r in 60..200)                                    // damier noir/blanc lissé en gris
+        }
+    }
+
     @Test fun bordsDeLImage() {
         val n = 1
         val s = sortie(n) { t -> t[0] = 5f; t[1] = 5f; t[2] = 40f; t[3] = 40f; t[(4 + 14) * n] = 0.8f }

@@ -268,6 +268,29 @@ class MainActivity : Activity() {
         })
         c.addView(ligne)
 
+        // mode enfant (pendant le verrou : on peut l'allumer, pas l'éteindre)
+        val ligneEnfant = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, v.dp(4), 0, 0)
+        }
+        ligneEnfant.addView(TextView(this).apply {
+            text = getString(R.string.mode_enfant)
+            textSize = 16f
+            setTextColor(v.pal.texte)
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        ligneEnfant.addView(Switch(this).apply {
+            isChecked = e.modeEnfant
+            isEnabled = !(e.verrouActif && e.modeEnfant)
+            setOnCheckedChangeListener { _, oui ->
+                e.modeEnfant = oui
+                racine.post { dessiner() }
+            }
+        })
+        c.addView(ligneEnfant)
+        v.note(c, getString(R.string.mode_enfant_texte))
+        v.espace(c, 8)
+
         // sensibilité
         v.texte(c, getString(R.string.sensibilite), 14f, v.pal.texteDoux, gras = true)
         val noms = listOf(getString(R.string.sens_stricte), getString(R.string.sens_normale), getString(R.string.sens_souple))
@@ -421,11 +444,7 @@ class MainActivity : Activity() {
         if (DiagDetection.dernierMs > 0) lignes += getString(R.string.diag_ms, DiagDetection.dernierMs.toInt())
         lignes += getString(R.string.diag_nb, DiagDetection.analyses)
         lignes += getString(R.string.couche_modele) + " : " + (if (DiagDetection.modeleCharge) "✔" else "✘")
-        lignes += when (DiagDetection.masqueDansCapture) {
-            true -> getString(R.string.mesure_oui)
-            false -> getString(R.string.mesure_non)
-            null -> getString(R.string.mesure_inconnue)
-        }
+        lignes += getString(R.string.diag_floutees, DiagDetection.floutees)
         DiagDetection.erreur?.let { lignes += getString(R.string.diag_erreur, it) }
         fenetre(getString(R.string.details_titre), lignes.joinToString("\n\n"), R.drawable.ic_info)
     }

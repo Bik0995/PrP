@@ -28,33 +28,36 @@ object DiagDetection {
     /** Résultat de la dernière analyse (traduit par l'écran principal) et son détail éventuel. */
     @Volatile var dernier = Analyse.AUCUNE
     @Volatile var dernierDetail = ""
-    /** null = pas encore mesuré ; true = le masque apparaît dans les captures ; false = non. */
-    @Volatile var masqueDansCapture: Boolean? = null
     @Volatile var analyses = 0
     @Volatile var ecransProteges = 0
+    /** Nombre d'images actuellement floutées. */
+    @Volatile var floutees = 0
 }
 
 /**
- * Détection d'images à l'écran : capture l'écran avec le service d'accessibilité, cherche les
- * parties exposées avec le modèle local, puis recouvre **l'image entière** qui les contient
- * par sa version floutée. Le masque suit l'image quand on fait défiler ; il disparaît quand
- * l'image sort de l'écran et revient dès qu'elle réapparaît. Si aucune image n'est reconnue
- * autour de la détection (vue dessinée par l'application), seule la zone concernée est masquée.
+ * Détection d'images à l'écran : capture l'écran avec le service d'accessibilité, repère la
+ * nudité avec le modèle local, revérifie chaque soupçon de près, puis **floute l'image entière**
+ * (ou la vidéo) qui la contient. Le flou suit l'image quand on fait défiler ; il disparaît
+ * quand l'image sort de l'écran et revient dès qu'elle réapparaît. Si aucune image n'est
+ * reconnue autour (vue dessinée par l'application), une large zone autour est floutée,
+ * jusqu'au prochain défilement ou changement d'application.
  * Rien n'est enregistré ni envoyé : chaque capture est analysée en mémoire puis jetée.
  * Nécessite Android 11 minimum (capture d'écran par accessibilité).
  */
 class Detection(private val service: AccessibilityService) {
     private val principal = Handler(Looper.getMainLooper())
     private val fond = Executors.newSingleThreadExecutor()
-    private val controle = ControleurMasque()
     private val etat = Etat(service)
     private val wm: WindowManager = service.getSystemService(WindowManager::class.java)
     private val ecran: PowerManager = service.getSystemService(PowerManager::class.java)
     private val verrouEcran: KeyguardManager = service.getSystemService(KeyguardManager::class.java)
 
-    /** Une image reconnue comme à masquer, suivie par son nœud d'accessibilité. */
+    /**
+     * Une image floutée. Avec un nœud d'accessibilité, elle suit l'image ; sans nœud (zone
+     * de secours), elle reste en place jusqu'au prochain défilement.
+     */
     private class Cible(
-        val noeud: AccessibilityNodeInfo,
+        val noeud: AccessibilityNodeInfo?,
         var zone: Zone,
         val flou: Bitmap?,
         val empreinte: String,
@@ -68,7 +71,6 @@ class Detection(private val service: AccessibilityService) {
     private var actif = false
     private var enCours = false
     private var derniereSignature: IntArray? = null
-    private var dernierProbe = 0L
     private var derniereMaj = 0L
     private var paquetAvant = ""
 
@@ -76,7 +78,7 @@ class Detection(private val service: AccessibilityService) {
         override fun run() {
             if (!actif) return
             tic()
-            principal.postDelayed(this, if (aDesMasques()) 700L else 1000L)
+            principal.postDelayed(this, 900L)
         }
     }
 
@@ -109,8 +111,8 @@ class Detection(private val service: AccessibilityService) {
         if (ferme && !actif) return
         actif = false
         principal.removeCallbacksAndMessages(null)
-        controle.effacer()
         cibles.clear()
+        DiagDetection.floutees = 0
         try { if (vueAjoutee) wm.removeView(vue) } catch (e: Exception) { }
         vueAjoutee = false
         vue = null
@@ -121,28 +123,27 @@ class Detection(private val service: AccessibilityService) {
         }
     }
 
-    /** Changement d'application au premier plan : les anciens masques n'ont plus de raison d'être. */
+    /** Changement d'application au premier plan : les anciens flous n'ont plus de raison d'être. */
     fun surPaquet(paquet: String) {
         if (paquet == paquetAvant || paquet in IGNORES || paquet in claviers()) return
         paquetAvant = paquet
-        controle.effacer()
         cibles.clear()
         derniereSignature = null
         rafraichirVue()
     }
 
-    /** Défilement : les masques d'image suivent leur image ; les zones sans image sont réévaluées. */
+    /** Défilement : les flous d'image suivent leur image ; les zones de secours sont réévaluées. */
     fun surDefilement() {
         if (!actif) return
+        cibles.removeAll { it.noeud == null }
         majCibles()
-        controle.effacer()
         derniereSignature = null
         rafraichirVue()
         principal.removeCallbacks(rapide)
         principal.postDelayed(rapide, 250L)
     }
 
-    /** Contenu modifié (chargement, animation) : repositionne les masques, au plus tous les 120 ms. */
+    /** Contenu modifié (chargement, animation) : repositionne les flous, au plus tous les 120 ms. */
     fun surContenu() {
         if (!actif || cibles.isEmpty()) return
         val t = SystemClock.uptimeMillis()
@@ -185,7 +186,7 @@ class Detection(private val service: AccessibilityService) {
         classe.endsWith("ImageView") || classe == "android.widget.Image" ||
             classe.contains("Video") || classe.endsWith("TextureView") || classe.endsWith("SurfaceView")
 
-    /** Les images visibles de la fenêtre au premier plan, avec leur rectangle à l'écran. */
+    /** Les images (et vidéos) visibles de la fenêtre au premier plan, avec leur rectangle à l'écran. */
     private fun noeudsImages(): List<Pair<AccessibilityNodeInfo, Zone>> {
         val racine = try { service.rootInActiveWindow } catch (e: Exception) { null } ?: return emptyList()
         if (racine.packageName?.toString() == service.packageName) return emptyList()
@@ -237,20 +238,21 @@ class Detection(private val service: AccessibilityService) {
         val it = cibles.iterator()
         while (it.hasNext()) {
             val c = it.next()
-            val ok = try { c.noeud.refresh() } catch (e: Exception) { false }
+            val n = c.noeud ?: continue
+            val ok = try { n.refresh() } catch (e: Exception) { false }
             if (!ok) { it.remove(); continue }
-            if (empreinte(c.noeud) != c.empreinte) {          // la vue montre maintenant autre chose
+            if (empreinte(n) != c.empreinte) {          // la vue montre maintenant autre chose
                 it.remove()
                 derniereSignature = null
                 continue
             }
-            c.noeud.getBoundsInScreen(r)
-            c.visible = c.noeud.isVisibleToUser && r.width() > 0 && r.height() > 0
+            n.getBoundsInScreen(r)
+            c.visible = n.isVisibleToUser && r.width() > 0 && r.height() > 0
             if (c.visible) c.zone = Zone(r.left.toFloat(), r.top.toFloat(), r.right.toFloat(), r.bottom.toFloat())
         }
     }
 
-    /** Version très floutée d'un morceau de la capture (réduite ; l'agrandissement fait le flou). */
+    /** Version floutée d'un morceau de la capture : réduite, adoucie ; l'agrandissement finit le flou. */
     private fun flou(capture: Bitmap, z: Zone): Bitmap? = try {
         val x = z.g.toInt().coerceIn(0, capture.width - 1)
         val y = z.h.toInt().coerceIn(0, capture.height - 1)
@@ -259,39 +261,44 @@ class Detection(private val service: AccessibilityService) {
         if (l < 4 || h < 4) null
         else {
             val morceau = Bitmap.createBitmap(capture, x, y, l, h)
-            val petit = Bitmap.createScaledBitmap(morceau, maxOf(2, l / 28), maxOf(2, h / 28), true)
+            val pl = maxOf(3, l / 18)
+            val ph = maxOf(3, h / 18)
+            val petit = Bitmap.createScaledBitmap(morceau, pl, ph, true)
             if (petit !== morceau) morceau.recycle()
-            petit
+            val px = IntArray(pl * ph)
+            petit.getPixels(px, 0, pl, 0, 0, pl, ph)
+            petit.recycle()
+            Bitmap.createBitmap(Pretraitement.flouBoite(px, pl, ph), pl, ph, Bitmap.Config.ARGB_8888)
         }
     } catch (e: Exception) { null }
 
     /**
      * Revoit chaque suspect de près : la région analysée est l'image entière qui le contient
      * (ou, à défaut, la zone agrandie), passée seule au modèle, donc en bien plus grand.
-     * Ne garde que les détections confirmées, avec l'indice de leur image (-1 si aucune).
+     * Ne garde que les détections confirmées, avec leur région à flouter et l'indice de leur image.
      */
+    private class Confirmee(val boite: Boite, val region: Zone, val image: Int)
+
     private fun verifier(
         d: Detecteur, capture: Bitmap, suspects: List<Boite>,
-        images: List<Pair<AccessibilityNodeInfo, Zone>>, sens: Int,
-    ): Pair<List<Pair<Boite, Int>>, Long> {
-        val aireEcran = capture.width.toFloat() * capture.height.toFloat()
+        images: List<Pair<AccessibilityNodeInfo, Zone>>, sens: Int, enfant: Boolean,
+    ): Pair<List<Confirmee>, Long> {
+        val lc = capture.width.toFloat()
+        val hc = capture.height.toFloat()
         val cadres = images.map { it.second }
         val regions = LinkedHashMap<String, Pair<Zone, Int>>()
         for (b in suspects) {
             val zb = Zone(b.x, b.y, b.droite, b.bas)
-            val i = Cadres.choisir(zb, cadres, aireEcran)
+            val i = Cadres.choisir(zb, cadres, lc * hc)
             val z = if (i >= 0) cadres[i] else {
-                val mx = maxOf(b.l, 120f)
-                val my = maxOf(b.h, 120f)
+                val mx = maxOf(b.l * 0.8f, 160f)
+                val my = maxOf(b.h * 0.8f, 160f)
                 Zone(b.x - mx, b.y - my, b.droite + mx, b.bas + my)
             }
-            val zc = Zone(
-                z.g.coerceIn(0f, capture.width.toFloat()), z.h.coerceIn(0f, capture.height.toFloat()),
-                z.d.coerceIn(0f, capture.width.toFloat()), z.b.coerceIn(0f, capture.height.toFloat()),
-            )
+            val zc = Zone(z.g.coerceIn(0f, lc), z.h.coerceIn(0f, hc), z.d.coerceIn(0f, lc), z.b.coerceIn(0f, hc))
             regions.getOrPut("${zc.g.toInt()},${zc.h.toInt()},${zc.d.toInt()},${zc.b.toInt()}") { zc to i }
         }
-        val res = ArrayList<Pair<Boite, Int>>()
+        val res = ArrayList<Confirmee>()
         var ms = 0L
         for ((z, i) in regions.values.take(MAX_VERIFS)) {
             val x = z.g.toInt()
@@ -309,53 +316,36 @@ class Detection(private val service: AccessibilityService) {
             val r = d.detecter(px, l, h, rl.toFloat(), rh.toFloat())
             ms += r.msInference
             for (b in r.boites) {
-                if (!Classes.visee(b.classe) || b.score < Classes.seuil(b.classe, sens)) continue
-                res.add(Boite(b.x + x, b.y + y, b.l, b.h, b.classe, b.score) to i)
+                if (!Classes.visee(b.classe, enfant) || b.score < Classes.seuil(b.classe, sens, enfant)) continue
+                res.add(Confirmee(Boite(b.x + x, b.y + y, b.l, b.h, b.classe, b.score), z, i))
             }
         }
         return res to ms
     }
 
-    /** Masque l'image entière qui contient chaque détection confirmée ; sinon, la zone seule. */
-    private fun placer(
-        visees: List<Pair<Boite, Int>>, images: List<Pair<AccessibilityNodeInfo, Zone>>,
-        capture: Bitmap, sens: Int,
-    ) {
-        val seules = ArrayList<Boite>()
-        for ((b, i) in visees) {
+    /** Floute l'image entière qui contient chaque détection confirmée ; sinon, sa large zone. */
+    private fun placer(confirmees: List<Confirmee>, images: List<Pair<AccessibilityNodeInfo, Zone>>, capture: Bitmap) {
+        for (c in confirmees) {
+            val b = c.boite
             val zb = Zone(b.x, b.y, b.droite, b.bas)
             if (cibles.any { it.visible && Cadres.contientCentre(it.zone, zb) }) continue
-            if (i < 0 || i >= images.size) { seules.add(b); continue }
-            val (noeud, zone) = images[i]
-            val existante = cibles.firstOrNull { it.noeud == noeud }
-            if (existante != null) { existante.visible = true; existante.zone = zone; continue }
-            cibles.add(Cible(noeud, zone, flou(capture, zone), empreinte(noeud)))
+            if (c.image in images.indices) {
+                val (noeud, zone) = images[c.image]
+                val existante = cibles.firstOrNull { it.noeud == noeud }
+                if (existante != null) { existante.visible = true; existante.zone = zone; continue }
+                cibles.add(Cible(noeud, zone, flou(capture, zone), empreinte(noeud)))
+            } else {
+                cibles.add(Cible(null, c.region, flou(capture, c.region), ""))
+            }
             while (cibles.size > MAX_CIBLES) cibles.removeAt(0)
         }
-        if (seules.isNotEmpty())
-            controle.mettreAJour(seules, capture.width.toFloat(), capture.height.toFloat(), sens, SystemClock.uptimeMillis())
     }
 
     // ------------------------------------------------------------------ affichage
 
-    private fun aDesMasques(): Boolean =
-        cibles.any { it.visible } || controle.aDesZones(SystemClock.uptimeMillis())
-
-    private fun masquesActuels(): List<Masque> {
-        val liste = ArrayList<Masque>()
-        for (c in cibles) if (c.visible) liste.add(Masque(RectF(c.zone.g, c.zone.h, c.zone.d, c.zone.b), c.flou, true))
-        val zones = controle.actives(SystemClock.uptimeMillis())
-        if (zones.isNotEmpty()) {
-            val b = wm.maximumWindowMetrics.bounds
-            val w = b.width().toFloat()
-            val h = b.height().toFloat()
-            for (z in zones) liste.add(Masque(RectF(z.g * w, z.h * h, z.d * w, z.b * h), null, false))
-        }
-        return liste
-    }
-
     private fun rafraichirVue() {
-        val m = masquesActuels()
+        val m = cibles.filter { it.visible }.map { Masque(RectF(it.zone.g, it.zone.h, it.zone.d, it.zone.b), it.flou, true) }
+        DiagDetection.floutees = m.size
         if (m.isEmpty()) {
             vue?.masques = emptyList()
             return
@@ -390,40 +380,22 @@ class Detection(private val service: AccessibilityService) {
         ecran.isInteractive && !verrouEcran.isKeyguardLocked && paquetAvant != service.packageName
 
     private fun tic() {
-        val maintenant = SystemClock.uptimeMillis()
         majCibles()
         rafraichirVue()
         if (enCours || detecteur == null || !ecranUtilisable()) return
-        val aplats = controle.aDesZones(maintenant)
-        val mode = DiagDetection.masqueDansCapture
-        controle.tenueMs = if (mode == true) TENUE_PROBE_MS else TENUE_MS
-        if (aplats && mode == true) {
-            // les zones sans image s'effacent un instant pour revoir l'écran ; les images floutées restent
-            if (maintenant - dernierProbe >= PROBE_MS) {
-                dernierProbe = maintenant
-                vue?.cacheAplats = true
-                principal.postDelayed({ capturer(true) }, 90L)
-            }
-        } else {
-            capturer(false)
-        }
+        capturer()
     }
 
     // ------------------------------------------------------------------ capture
 
-    private fun capturer(apresProbe: Boolean) {
-        if (Build.VERSION.SDK_INT < 30 || enCours) {
-            vue?.cacheAplats = false
-            return
-        }
+    private fun capturer() {
+        if (Build.VERSION.SDK_INT < 30 || enCours) return
         enCours = true
-        val visibles = masquesActuels().filter { it.image || !apresProbe }
         try {
             service.takeScreenshot(
                 Display.DEFAULT_DISPLAY, service.mainExecutor,
                 object : AccessibilityService.TakeScreenshotCallback {
                     override fun onSuccess(r: AccessibilityService.ScreenshotResult) {
-                        vue?.cacheAplats = false                  // les aplats reviennent tout de suite
                         val tampon = r.hardwareBuffer
                         val image = try { Bitmap.wrapHardwareBuffer(tampon, r.colorSpace) } catch (e: Exception) { null }
                         if (image == null) {
@@ -431,11 +403,10 @@ class Detection(private val service: AccessibilityService) {
                             enCours = false
                             return
                         }
-                        fond.execute { traiter(image, tampon, visibles) }
+                        fond.execute { traiter(image, tampon) }
                     }
 
                     override fun onFailure(code: Int) {
-                        vue?.cacheAplats = false
                         enCours = false
                         DiagDetection.dernierDetail = code.toString()
                         DiagDetection.dernier = Analyse.REFUSEE
@@ -443,27 +414,24 @@ class Detection(private val service: AccessibilityService) {
                 },
             )
         } catch (e: Exception) {
-            vue?.cacheAplats = false
             enCours = false
             DiagDetection.erreur = "screenshot: ${e.message}"
         }
     }
 
-    private fun traiter(image: Bitmap, tampon: android.hardware.HardwareBuffer, visibles: List<Masque>) {
+    private fun traiter(image: Bitmap, tampon: android.hardware.HardwareBuffer) {
         var capture: Bitmap? = null
         try {
             val d = detecteur ?: return
             val ecranL = image.width
             val ecranH = image.height
             val (l, h) = Yolo.dimensionsEntree(ecranL, ecranH)
-            capture = image.copy(Bitmap.Config.ARGB_8888, false) ?: return
-            val reduit = Bitmap.createScaledBitmap(capture, l, h, true)
+            val cap = image.copy(Bitmap.Config.ARGB_8888, false) ?: return
+            capture = cap
+            val reduit = Bitmap.createScaledBitmap(cap, l, h, true)
             val pixels = IntArray(l * h)
             reduit.getPixels(pixels, 0, l, 0, 0, l, h)
-            if (reduit !== capture) reduit.recycle()
-
-            if (visibles.isNotEmpty() && DiagDetection.masqueDansCapture == null)
-                calibrer(pixels, l, h, ecranL, ecranH, visibles)
+            if (reduit !== cap) reduit.recycle()
 
             if (Pretraitement.luminanceMoyenne(pixels, l, h) < 3f) {       // écran noir : lecteur protégé ou écran éteint
                 DiagDetection.ecransProteges++
@@ -481,31 +449,32 @@ class Detection(private val service: AccessibilityService) {
             DiagDetection.analyses++
             var ms = res.msInference
             val sens = etat.sensibilite
-            val suspects = res.boites.filter { Classes.visee(it.classe) && it.score >= Classes.seuilSuspect(it.classe, sens) }
-            var visees = emptyList<Pair<Boite, Int>>()
+            val enfant = etat.modeEnfant
+            val suspects = res.boites.filter {
+                Classes.visee(it.classe, enfant) && it.score >= Classes.seuilSuspect(it.classe, sens, enfant)
+            }
+            var confirmees = emptyList<Confirmee>()
             var images = emptyList<Pair<AccessibilityNodeInfo, Zone>>()
             if (suspects.isNotEmpty()) {
-                // 2e passage : chaque suspect est revu de près, sur l'image qui le contient
                 images = noeudsImages()
-                val (confirmees, msVerif) = verifier(d, capture, suspects, images, sens)
-                visees = confirmees
+                val (c, msVerif) = verifier(d, cap, suspects, images, sens, enfant)
+                confirmees = c
                 ms += msVerif
             }
             DiagDetection.dernierMs = ms
-            DiagDetection.dernierDetail = visees.joinToString { "${Classes.NOMS[it.first.classe]} ${(it.first.score * 100).toInt()}%" }
-            DiagDetection.dernier = if (visees.isEmpty()) Analyse.RIEN else Analyse.MASQUE
-            if (visees.isNotEmpty()) {
-                val c = capture
+            DiagDetection.dernierDetail = confirmees.joinToString { "${Classes.NOMS[it.boite.classe]} ${(it.boite.score * 100).toInt()}%" }
+            DiagDetection.dernier = if (confirmees.isEmpty()) Analyse.RIEN else Analyse.MASQUE
+            if (confirmees.isNotEmpty()) {
                 val im = images
                 capture = null                                  // l'image passe au fil principal, qui la libérera
                 principal.post {
                     try {
                         if (actif) {
-                            placer(visees, im, c, sens)
+                            placer(confirmees, im, cap)
                             rafraichirVue()
                         }
                     } finally {
-                        c.recycle()
+                        cap.recycle()
                     }
                 }
             }
@@ -518,25 +487,7 @@ class Detection(private val service: AccessibilityService) {
         }
     }
 
-    /** Mesure une fois si les masques eux-mêmes apparaissent dans les captures d'écran de cet appareil. */
-    private fun calibrer(pixels: IntArray, l: Int, h: Int, ecranL: Int, ecranH: Int, masques: List<Masque>) {
-        val m = masques.firstOrNull() ?: return
-        val cible = if (m.image) MasqueVue.pastille(m.rect) else m.rect
-        var oui = 0
-        for (i in 1..3) for (j in 1..3) {
-            val px = cible.left + cible.width() * i / 4f
-            val py = cible.top + cible.height() * j / 4f
-            val x = (px / ecranL * l).toInt().coerceIn(0, l - 1)
-            val y = (py / ecranH * h).toInt().coerceIn(0, h - 1)
-            if (Pretraitement.couleurProche(pixels[y * l + x], MasqueVue.R, MasqueVue.G, MasqueVue.B, 12)) oui++
-        }
-        DiagDetection.masqueDansCapture = oui >= 7
-    }
-
     companion object {
-        const val TENUE_MS = 2500L
-        const val TENUE_PROBE_MS = 3800L
-        const val PROBE_MS = 2000L
         const val SEUIL_CHANGEMENT = 0.004f
         const val MAX_NOEUDS = 2500
         const val MAX_CIBLES = 40

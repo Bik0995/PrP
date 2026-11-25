@@ -40,6 +40,11 @@ class Etat(ctx: Context) {
         get() = p.getBoolean("detection", false)
         set(v) { p.edit().putBoolean("detection", v).commit() }
 
+    /** Mode enfant : floute aussi les torses nus et les maillots ou sous-vêtements. */
+    var modeEnfant: Boolean
+        get() = p.getBoolean("mode_enfant", false)
+        set(v) { p.edit().putBoolean("mode_enfant", v).commit() }
+
     /** 0 = stricte, 1 = normale, 2 = souple. */
     var sensibilite: Int
         get() = p.getInt("sensibilite", 1)

@@ -35,7 +35,7 @@
     <string name="proprio_titre">Step 2: make PrP unremovable</string>
     <string name="proprio_attente">Meanwhile, browser filtering works, but it can be turned off.</string>
     <string name="detection_titre">Image detection</string>
-    <string name="detection_texte">Blurs the whole image as soon as an exposed part is spotted in it, in every app. The blur follows the image when you scroll and comes back when it reappears. Everything is analysed on the phone: no image is stored or sent.</string>
+    <string name="detection_texte">Blurs the whole image or video as soon as it shows nudity: genitals, bare buttocks, bare breasts. Swimsuits, underwear and bare chests stay visible. The blur follows the image when you scroll. Everything is analysed on the phone: no image is stored or sent.</string>
     <string name="detection_android11">Requires Android 11 or newer. Site blocking still works.</string>
     <string name="detection_active">Detection on</string>
     <string name="sensibilite">Sensitivity</string>
@@ -58,6 +58,9 @@
     <string name="mesure_non">The mask does not show up in screenshots (ideal case).</string>
     <string name="mesure_inconnue">Not measured yet (it happens at the first mask).</string>
     <string name="diag_erreur">Error: %1$s</string>
+    <string name="mode_enfant">Child mode</string>
+    <string name="mode_enfant_texte">Also blurs bare chests, swimsuits and underwear. While locked, it can be turned on but not off.</string>
+    <string name="diag_floutees">Images blurred on screen: %1$d</string>
     <string name="verrouiller_titre">Lock</string>
     <string name="duree_verrou">Lock duration</string>
     <string name="duree_aide">Before this deadline, nothing and no one can remove PrP.</string>

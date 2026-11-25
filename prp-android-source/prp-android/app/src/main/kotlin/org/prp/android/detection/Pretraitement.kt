@@ -51,4 +51,34 @@ object Pretraitement {
         kotlin.math.abs(((pixel shr 16) and 255) - r) <= tolerance &&
             kotlin.math.abs(((pixel shr 8) and 255) - g) <= tolerance &&
             kotlin.math.abs((pixel and 255) - b) <= tolerance
+
+    /**
+     * Flou de boîte sur une petite image ARGB (passes horizontales puis verticales, [passes] fois).
+     * Appliqué à une image très réduite, puis agrandie à l'écran, il donne un flou doux et opaque.
+     */
+    fun flouBoite(pixels: IntArray, l: Int, h: Int, rayon: Int = 2, passes: Int = 2): IntArray {
+        require(pixels.size >= l * h)
+        var src = pixels.copyOf(l * h)
+        var dst = IntArray(l * h)
+        val r = rayon.coerceAtLeast(1)
+        repeat(passes) {
+            for (sens in 0..1) {
+                val (n, m) = if (sens == 0) h to l else l to h      // n lignes de m pixels
+                for (a in 0 until n) {
+                    for (b in 0 until m) {
+                        var sr = 0; var sg = 0; var sb = 0; var c = 0
+                        for (k in -r..r) {
+                            val q = (b + k).coerceIn(0, m - 1)
+                            val px = if (sens == 0) src[a * l + q] else src[q * l + a]
+                            sr += (px shr 16) and 0xFF; sg += (px shr 8) and 0xFF; sb += px and 0xFF; c++
+                        }
+                        val v = (0xFF shl 24) or ((sr / c) shl 16) or ((sg / c) shl 8) or (sb / c)
+                        if (sens == 0) dst[a * l + b] = v else dst[b * l + a] = v
+                    }
+                }
+                val t = src; src = dst; dst = t
+            }
+        }
+        return src
+    }
 }

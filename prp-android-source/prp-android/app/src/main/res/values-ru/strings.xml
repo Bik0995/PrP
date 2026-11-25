@@ -35,7 +35,7 @@
     <string name="proprio_titre">Шаг 2: сделать PrP неудаляемым</string>
     <string name="proprio_attente">Пока что фильтрация браузеров работает, но её можно отключить.</string>
     <string name="detection_titre">Распознавание изображений</string>
-    <string name="detection_texte">Размывает всё изображение, как только в нём найдена откровенная часть, во всех приложениях. Размытие следует за изображением при прокрутке и возвращается, когда оно снова появляется. Анализ идёт на телефоне: изображения не сохраняются и не отправляются.</string>
+    <string name="detection_texte">Размывает всё изображение или видео, если на нём есть нагота: половые органы, обнажённые ягодицы, обнажённая грудь. Купальники, нижнее бельё и голые торсы остаются видны. Размытие следует за изображением при прокрутке. Анализ идёт на телефоне: изображения не сохраняются и не отправляются.</string>
     <string name="detection_android11">Нужен Android 11 или новее. Блокировка сайтов всё равно работает.</string>
     <string name="detection_active">Распознавание включено</string>
     <string name="sensibilite">Чувствительность</string>
@@ -58,6 +58,9 @@
     <string name="mesure_non">Маска не попадает в снимки экрана (идеальный случай).</string>
     <string name="mesure_inconnue">Ещё не измерено (произойдёт при первой маске).</string>
     <string name="diag_erreur">Ошибка: %1$s</string>
+    <string name="mode_enfant">Детский режим</string>
+    <string name="mode_enfant_texte">Также размывает голые торсы, купальники и нижнее бельё. Во время блокировки его можно включить, но нельзя выключить.</string>
+    <string name="diag_floutees">Размыто изображений на экране: %1$d</string>
     <string name="verrouiller_titre">Блокировка</string>
     <string name="duree_verrou">Срок блокировки</string>
     <string name="duree_aide">До этого срока ничто и никто не сможет удалить PrP.</string>
