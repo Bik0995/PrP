@@ -1,8 +1,6 @@
 package org.prp.android.filtre
 
-import java.io.InputStream
 import java.net.IDN
-import java.util.zip.GZIPInputStream
 
 enum class Raison(val libelle: String) {
     MOT_CLE("nom de site explicite"),
@@ -18,7 +16,10 @@ data class Verdict(val bloque: Boolean, val hote: String = "", val raison: Raiso
  * Règle de conception : ne bloquer que ce qui est visé. Un mot-clé ne compte que dans
  * le NOM du site, jamais dans le reste de l'adresse ni dans une recherche.
  */
-class Filtre(private val liste: Set<String>) {
+class Filtre(private val liste: ListeSites) {
+
+    constructor(domaines: Set<String>) : this(ListeSites.depuis(domaines))
+
 
     fun verifierUrl(texte: String): Verdict {
         val hote = extraireHote(texte) ?: return LAISSER
@@ -108,16 +109,5 @@ class Filtre(private val liste: Set<String>) {
             return t
         }
 
-        /** Lit la liste embarquée (un domaine par ligne, compressée en gzip). */
-        fun chargerListe(flux: InputStream): Set<String> {
-            val ens = HashSet<String>(140_000)
-            GZIPInputStream(flux).bufferedReader().useLines { lignes ->
-                for (l in lignes) {
-                    val d = l.trim()
-                    if (d.isNotEmpty() && !d.startsWith("#")) ens.add(d)
-                }
-            }
-            return ens
-        }
     }
 }

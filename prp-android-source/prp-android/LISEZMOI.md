@@ -1,4 +1,4 @@
-# PrP — version Android (1.0-a2)
+# PrP — version Android (1.0-a7)
 
 Bloqueur de contenu adulte verrouillé dans le temps. Architecture détaillée :
 document `PrP-architecture-android.md` du projet.
@@ -12,9 +12,9 @@ document `PrP-architecture-android.md` du projet.
   - `Gardien.kt` — remise en place périodique, réactivation de la garde.
   - `MainActivity.kt`, `BloqueActivity.kt` — écrans.
   - Interface (a2) : `MainActivity.kt` (écran en cartes, fenêtres d'aide, durées en puces), `Vues.kt` (cartes, boutons, puces), `Apparence.kt` (langue et thème clair/sombre, couleurs, durées traduites). Langues : français (par défaut), anglais, russe, dans `res/values*/strings.xml`, générés par `outils/chaines.py` (modifier ce script puis le relancer). Choix de la langue et du thème : icône d'engrenage en haut de l'écran.
-  - `detection/` — détection d'images à l'écran (nouveau en a2) : `Detection.kt` (capture + boucle + masque), `Detecteur.kt` (modèle ONNX), `Yolo.kt` (décodage), `Masque.kt` (zones et maintien), `MasqueVue.kt` (fenêtre de masque), `Pretraitement.kt`, `Classes.kt` (ce qui est masqué et les seuils).
-- `app/src/main/assets/nsfw.bin` — liste HaGeZi NSFW (82 942 domaines, gzip).
-- `app/src/main/assets/nudenet_320n.onnx` — modèle NudeNet 320n (détection d'images), 12 Mo.
+  - `detection/` — détection d'images à l'écran : `Detection.kt` (capture, images à l'écran, flou), `Classifieur.kt` (modèle ONNX), `Classement.kt` (seuils, mode enfant, images à analyser), `Masque.kt` (zones), `MasqueVue.kt` (fenêtre de flou), `Pretraitement.kt`.
+- `app/src/main/assets/sites.bin` — liste de sites pour adultes de The Block List Project (≈ 937 000 domaines, hachages FNV-1a 64 triés, gzip), construite par `outils/liste_sites.py`. Lue par `filtre/ListeSites.kt`.
+- `app/src/main/assets/nsfwjs_mobilenet_v2.onnx` — classificateur NSFWJS MobileNetV2 (MIT), 10 Mo, converti par `outils/convertir_modele.py`. Chaque image affichée est classée en entier (Porn, Hentai, Sexy, Neutral, Drawing) ; voir `detection/Classement.kt`.
 - `licences/` et `NOTICES.md` — licences des composants embarqués.
 - `outils/installer-android.bat` — installation depuis le PC (adb).
 - `outils/secours-essai.bat` — retire la version d'essai, même verrouillée.

@@ -109,7 +109,7 @@
     <string name="theme_sombre">Тёмная</string>
     <string name="actualiser">Обновить</string>
     <string name="a_propos">О приложении</string>
-    <string name="a_propos_texte">PrP %1$s\n\nМодель распознавания: NudeNet (AGPL-3.0).\nЗначки: Material Icons (Apache 2.0).\nСписок сайтов: HaGeZi.\nНадёжное время: drand (League of Entropy).\nНастройка без компьютера: Shizuku API (MIT).</string>
+    <string name="a_propos_texte">PrP %1$s\n\nМодель распознавания: NSFWJS MobileNetV2 (MIT).\nЗначки: Material Icons (Apache 2.0).\nСписок сайтов: The Block List Project (Unlicense).\nНадёжное время: drand (League of Entropy).\nНастройка без компьютера: Shizuku API (MIT).</string>
     <string name="choix_titre">Установка PrP</string>
     <string name="choix_texte">Выберите, как PrP будет защищать этот телефон. Это можно изменить, пока блокировка не установлена.</string>
     <string name="mode_fort">Сильный режим</string>

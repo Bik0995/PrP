@@ -16,6 +16,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import org.prp.android.filtre.Filtre
+import org.prp.android.filtre.ListeSites
 import org.prp.android.detection.Detection
 import org.prp.android.filtre.Verdict
 import java.util.concurrent.Executors
@@ -75,9 +76,9 @@ class GardeService : AccessibilityService() {
         fond.execute {
             navigateurs = listerNavigateurs()
             filtre = try {
-                Filtre(assets.open("nsfw.bin").use { Filtre.chargerListe(it) })
+                Filtre(assets.open("sites.bin").use { ListeSites.charger(it) })
             } catch (e: Exception) {
-                Filtre(emptySet()) // la liste manque : les mots-clés restent actifs
+                Filtre(ListeSites.VIDE) // la liste manque : les mots-clés restent actifs
             }
         }
         val f = IntentFilter().apply {
