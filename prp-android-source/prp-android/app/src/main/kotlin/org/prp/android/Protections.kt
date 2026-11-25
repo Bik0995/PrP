@@ -3,6 +3,7 @@ package org.prp.android
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -39,6 +40,20 @@ object Protections {
     private fun admin(ctx: Context) = ComponentName(ctx, AdminReceiver::class.java)
 
     fun estProprietaire(ctx: Context): Boolean = dpm(ctx).isDeviceOwnerApp(ctx.packageName)
+
+    /** Administrateur de l'appareil (Mode Simple) : la désinstallation doit d'abord le retirer. */
+    fun estAdmin(ctx: Context): Boolean = try { dpm(ctx).isAdminActive(admin(ctx)) } catch (e: Exception) { false }
+
+    fun intentionAdmin(ctx: Context): Intent =
+        Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+            .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin(ctx))
+            .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, ctx.getString(R.string.admin_explication))
+
+    /** Mode Simple prêt : garde active et PrP administrateur. */
+    fun simplePret(ctx: Context): Boolean = estAdmin(ctx) && Gardien.gardeActive(ctx)
+
+    /** Mode Simple en usage (PrP n'est pas propriétaire de l'appareil). */
+    fun modeSimple(ctx: Context): Boolean = !estProprietaire(ctx) && Etat(ctx).mode == Etat.MODE_SIMPLE
 
     /** Version d'essai (testOnly) : on garde le débogage USB comme porte de secours. */
     fun estEssai(ctx: Context): Boolean =
@@ -135,10 +150,9 @@ object Protections {
     /** Abandonne le rôle de propriétaire (après libération), pour permettre la désinstallation. */
     @Suppress("DEPRECATION")
     fun abandonnerRole(ctx: Context) {
-        if (!estProprietaire(ctx)) return
         val d = dpm(ctx)
-        essayer { d.clearDeviceOwnerApp(ctx.packageName) }
-        essayer { d.removeActiveAdmin(admin(ctx)) }
+        if (estProprietaire(ctx)) essayer { d.clearDeviceOwnerApp(ctx.packageName) }
+        if (estAdmin(ctx)) essayer { d.removeActiveAdmin(admin(ctx)) }
     }
 
     /** Couches de protection affichées sur l'écran principal : libellé et explication. */
@@ -149,10 +163,17 @@ object Protections {
         DNS(R.string.couche_dns, R.string.aide_dns),
         REGLAGES(R.string.couche_reglages, R.string.aide_reglages),
         MODELE(R.string.couche_modele, R.string.aide_modele),
+        ADMIN(R.string.couche_admin, R.string.aide_admin),
     }
 
     /** État de chaque couche, pour l'écran principal. */
     fun diagnostic(ctx: Context): List<Pair<Couche, Boolean>> {
+        val detection = if (Build.VERSION.SDK_INT >= 30 && Etat(ctx).detectionActive)
+            listOf(Couche.MODELE to org.prp.android.detection.DiagDetection.modeleCharge)
+        else emptyList()
+        if (modeSimple(ctx)) {
+            return listOf(Couche.GARDE to Gardien.gardeActive(ctx), Couche.ADMIN to estAdmin(ctx)) + detection
+        }
         val d = dpm(ctx)
         val a = admin(ctx)
         val proprio = estProprietaire(ctx)
@@ -164,9 +185,6 @@ object Protections {
             val b = d.getUserRestrictions(a)
             b.getBoolean(UserManager.DISALLOW_FACTORY_RESET) && b.getBoolean(UserManager.DISALLOW_SAFE_BOOT)
         } catch (e: Exception) { false }
-        val detection = if (Build.VERSION.SDK_INT >= 30 && Etat(ctx).detectionActive)
-            listOf(Couche.MODELE to org.prp.android.detection.DiagDetection.modeleCharge)
-        else emptyList()
         return listOf(
             Couche.PROPRIETAIRE to proprio,
             Couche.GARDE to Gardien.gardeActive(ctx),

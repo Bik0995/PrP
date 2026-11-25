@@ -27,6 +27,7 @@ import org.prp.android.Apparence.MINUTE
 import org.prp.android.Apparence.MOIS
 import org.prp.android.detection.Analyse
 import org.prp.android.detection.DiagDetection
+import rikka.shizuku.Shizuku
 import java.text.DateFormat
 import java.util.Date
 import kotlin.concurrent.thread
@@ -42,6 +43,16 @@ class MainActivity : Activity() {
     private var duree = 30 * JOUR
     private var delai = 48 * HEURE
     private var prolongation = 30 * JOUR
+
+    // assistant du Mode Fort
+    @Volatile private var bilan: Installation.Bilan? = null
+    @Volatile private var bilanEnCours = false
+
+    private val ecouteShizuku = Shizuku.OnBinderReceivedListener { runOnUiThread { if (!occupe) dessiner() } }
+    private val ecouteShizukuPerdu = Shizuku.OnBinderDeadListener { runOnUiThread { if (!occupe) dessiner() } }
+    private val ecouteAutorisation = Shizuku.OnRequestPermissionResultListener { _, _ ->
+        runOnUiThread { bilan = null; if (!occupe) dessiner() }
+    }
 
     private val minuterie = Handler(Looper.getMainLooper())
     private val rafraichir = object : Runnable {
@@ -67,11 +78,28 @@ class MainActivity : Activity() {
         }
         setContentView(defile)
         habillerBarres()
+        try {
+            Shizuku.addBinderReceivedListenerSticky(ecouteShizuku)
+            Shizuku.addBinderDeadListener(ecouteShizukuPerdu)
+            Shizuku.addRequestPermissionResultListener(ecouteAutorisation)
+        } catch (e: Throwable) { }
+    }
+
+    override fun onDestroy() {
+        try {
+            Shizuku.removeBinderReceivedListener(ecouteShizuku)
+            Shizuku.removeBinderDeadListener(ecouteShizukuPerdu)
+            Shizuku.removeRequestPermissionResultListener(ecouteAutorisation)
+        } catch (e: Throwable) { }
+        super.onDestroy()
     }
 
     override fun onResume() {
         super.onResume()
         Gardien.programmer(this)
+        bilan = null
+        // applications retirées pendant une installation interrompue : on les remet
+        if (Etat(this).paquetsRetires.isNotEmpty()) thread { Installation.restaurer(this) }
         minuterie.post(rafraichir)
     }
 
@@ -102,16 +130,23 @@ class MainActivity : Activity() {
         carteEtat(e, diag)
         carteProtections(e, diag)
 
-        if (!e.verrouActif && !Gardien.gardeActive(this)) carteGarde()
         val proprio = Protections.estProprietaire(this)
-        if (!e.verrouActif && !proprio) carteProprietaire()
+        if (!e.verrouActif && !proprio) {
+            when (e.mode) {
+                Etat.MODE_FORT -> carteFort()
+                Etat.MODE_SIMPLE -> carteSimple()
+                else -> carteChoixMode()
+            }
+        }
+        if (!e.verrouActif && proprio && !Gardien.gardeActive(this)) carteGarde()
+        if (Etat(this).paquetsRetires.isNotEmpty()) carteRestaurer()
 
         carteDetection(e)
 
         if (e.verrouActif) {
             carteVerrouActif(e)
             carteProlonger()
-        } else if (proprio) {
+        } else if (proprio || (Protections.modeSimple(this) && Protections.simplePret(this))) {
             carteVerrouiller()
         }
         if (!e.verrouActif) carteRetirer()
@@ -156,7 +191,7 @@ class MainActivity : Activity() {
 
     /** Grande carte d'état en haut : verrouillé, prêt, ou à compléter. */
     private fun carteEtat(e: Etat, diag: List<Pair<Protections.Couche, Boolean>>) {
-        val base = diag.filter {
+        val base = if (Protections.modeSimple(this)) Protections.simplePret(this) else diag.filter {
             it.first == Protections.Couche.PROPRIETAIRE || it.first == Protections.Couche.GARDE ||
                 it.first == Protections.Couche.REACTIVATION
         }.all { it.second }
@@ -228,12 +263,214 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun carteProprietaire() {
+    // ---------------------------------------------------------------- assistant d'installation
+
+    /** Premier écran : choix entre le Mode Fort (recommandé) et le Mode Simple. */
+    private fun carteChoixMode() {
         val c = v.carte(racine)
-        v.entete(c, R.drawable.ic_lock, getString(R.string.proprio_titre), v.pal.orange)
-        v.note(c, getString(R.string.aide_proprietaire))
-        v.espace(c, 4)
-        v.note(c, getString(R.string.proprio_attente))
+        v.entete(c, R.drawable.ic_verified_user, getString(R.string.choix_titre))
+        v.note(c, getString(R.string.choix_texte))
+
+        val fort = v.carte(c, v.pal.fondPrimaire, v.pal.primaire)
+        val titreFort = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        titreFort.addView(v.icone(R.drawable.ic_lock, v.pal.primaire, 24))
+        titreFort.addView(TextView(this).apply {
+            text = getString(R.string.mode_fort)
+            textSize = 17f
+            setTextColor(v.pal.texte)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(v.dp(10), 0, v.dp(10), 0)
+        })
+        titreFort.addView(TextView(this).apply {
+            text = getString(R.string.recommande)
+            textSize = 12f
+            setTextColor(v.pal.surPrimaire)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            background = v.fond(v.pal.primaire, 10f)
+            setPadding(v.dp(8), v.dp(3), v.dp(8), v.dp(3))
+        })
+        fort.addView(titreFort)
+        v.note(fort, getString(if (Installation.possible()) R.string.mode_fort_texte else R.string.mode_fort_texte_pc))
+        v.bouton(fort, getString(R.string.choisir_fort), R.drawable.ic_lock) {
+            Etat(this).mode = Etat.MODE_FORT
+            dessiner()
+        }
+
+        val simple = v.carte(c)
+        val titreSimple = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        titreSimple.addView(v.icone(R.drawable.ic_verified_user, v.pal.texteDoux, 24))
+        titreSimple.addView(TextView(this).apply {
+            text = getString(R.string.mode_simple)
+            textSize = 17f
+            setTextColor(v.pal.texte)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(v.dp(10), 0, 0, 0)
+        })
+        simple.addView(titreSimple)
+        v.note(simple, getString(R.string.mode_simple_texte))
+        v.bouton(simple, getString(R.string.choisir_simple), R.drawable.ic_verified_user, v.pal.primaire, Vues.Style.CONTOUR) {
+            Etat(this).mode = Etat.MODE_SIMPLE
+            dessiner()
+        }
+    }
+
+    private fun lienChangerMode(c: LinearLayout) {
+        v.bouton(c, getString(R.string.changer_mode), R.drawable.ic_refresh, v.pal.texteDoux, Vues.Style.CONTOUR) {
+            Etat(this).mode = Etat.MODE_AUCUN
+            dessiner()
+        }
+    }
+
+    /** Une étape de l'assistant : numéro, état, titre, explication. */
+    private fun etape(c: LinearLayout, numero: Int, faite: Boolean, titre: String, aide: String?) {
+        v.ligneEtat(c, faite, "$numero. $titre") {
+            if (aide != null) fenetre(titre, aide, if (faite) R.drawable.ic_check_circle else R.drawable.ic_info)
+        }
+    }
+
+    /** Mode Fort sans PC : Shizuku (débogage sans fil), comptes, puis propriétaire de l'appareil. */
+    private fun carteFort() {
+        val c = v.carte(racine)
+        v.entete(c, R.drawable.ic_lock, getString(R.string.fort_titre), v.pal.primaire) {
+            fenetre(getString(R.string.fort_titre), getString(R.string.fort_aide), R.drawable.ic_lock)
+        }
+        if (!Installation.possible()) {
+            v.note(c, getString(R.string.fort_android11))
+            lienChangerMode(c)
+            return
+        }
+        val installe = Installation.shizukuInstalle(this)
+        val actif = installe && Installation.shizukuActif()
+        val autorise = actif && Installation.autorise()
+
+        etape(c, 1, installe, getString(R.string.fort_e1), getString(R.string.fort_e1_aide))
+        if (!installe) {
+            v.note(c, getString(R.string.fort_e1_aide))
+            v.bouton(c, getString(R.string.installer_shizuku), R.drawable.ic_update) { ouvrirShizukuBoutique() }
+            lienChangerMode(c)
+            return
+        }
+        etape(c, 2, actif, getString(R.string.fort_e2), getString(R.string.fort_e2_aide))
+        if (!actif) {
+            v.note(c, getString(R.string.fort_e2_aide))
+            v.bouton(c, getString(R.string.ouvrir_shizuku), R.drawable.ic_settings) { ouvrirShizuku() }
+            v.bouton(c, getString(R.string.ouvrir_developpeur), R.drawable.ic_settings, v.pal.primaire, Vues.Style.CONTOUR) {
+                ouvrir(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS), Intent(Settings.ACTION_DEVICE_INFO_SETTINGS))
+            }
+            lienChangerMode(c)
+            return
+        }
+        etape(c, 3, autorise, getString(R.string.fort_e3), getString(R.string.fort_e3_aide))
+        if (!autorise) {
+            v.note(c, getString(R.string.fort_e3_aide))
+            v.bouton(c, getString(R.string.autoriser_prp), R.drawable.ic_check_circle) { Installation.demanderAutorisation() }
+            lienChangerMode(c)
+            return
+        }
+
+        val b = bilan
+        if (b == null) {
+            etape(c, 4, false, getString(R.string.fort_e4), null)
+            v.note(c, getString(R.string.fort_lecture))
+            if (!bilanEnCours) {
+                bilanEnCours = true
+                thread {
+                    val r = try { Installation.bilan(this) } catch (ex: Throwable) { null }
+                    runOnUiThread {
+                        bilan = r
+                        bilanEnCours = false
+                        if (r != null && !occupe) dessiner()
+                    }
+                }
+            }
+            return
+        }
+        val pret = b.manuels == 0 && b.utilisateurs <= 1
+        etape(c, 4, pret, getString(R.string.fort_e4), getString(R.string.fort_e4_aide))
+        if (b.utilisateurs > 1) v.texte(c, getString(R.string.err_utilisateurs), 14f, v.pal.rouge)
+        if (b.manuels > 0) {
+            v.texte(c, resources.getQuantityString(R.plurals.p_comptes_manuels, b.manuels, b.manuels), 14f, v.pal.rouge)
+            v.bouton(c, getString(R.string.ouvrir_comptes), R.drawable.ic_settings) {
+                ouvrir(Intent(Settings.ACTION_SYNC_SETTINGS), Intent(Settings.ACTION_SETTINGS))
+            }
+        }
+        if (b.automatiques > 0) v.note(c, resources.getQuantityString(R.plurals.p_comptes_auto, b.automatiques, b.automatiques))
+        v.bouton(c, getString(R.string.verifier), R.drawable.ic_refresh, v.pal.primaire, Vues.Style.CONTOUR) {
+            bilan = null
+            dessiner()
+        }
+        if (!pret) { lienChangerMode(c); return }
+
+        etape(c, 5, false, getString(R.string.fort_e5), getString(R.string.fort_e5_aide))
+        v.note(c, getString(R.string.fort_e5_aide))
+        v.bouton(c, getString(R.string.devenir_proprietaire), R.drawable.ic_lock) {
+            action(R.string.ok_proprietaire) { Installation.devenirProprietaire(this) }
+        }
+        lienChangerMode(c)
+    }
+
+    /** Mode Simple : la garde (accessibilité) et PrP administrateur de l'appareil. */
+    private fun carteSimple() {
+        val c = v.carte(racine)
+        v.entete(c, R.drawable.ic_verified_user, getString(R.string.simple_titre))
+        val garde = Gardien.gardeActive(this)
+        val admin = Protections.estAdmin(this)
+
+        etape(c, 1, garde, getString(R.string.simple_e1), getString(R.string.simple_e1_aide))
+        if (!garde) {
+            v.note(c, getString(R.string.simple_e1_aide))
+            v.bouton(c, getString(R.string.ouvrir_accessibilite), R.drawable.ic_settings) {
+                ouvrir(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            if (Build.VERSION.SDK_INT >= 33) {
+                v.note(c, getString(R.string.simple_restreint))
+                v.bouton(c, getString(R.string.ouvrir_fiche), R.drawable.ic_info, v.pal.primaire, Vues.Style.CONTOUR) {
+                    ouvrir(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                }
+            }
+        }
+        etape(c, 2, admin, getString(R.string.simple_e2), getString(R.string.simple_e2_aide))
+        if (garde && !admin) {
+            v.note(c, getString(R.string.simple_e2_aide))
+            v.bouton(c, getString(R.string.activer_admin), R.drawable.ic_lock) {
+                ouvrir(Protections.intentionAdmin(this))
+            }
+        }
+        if (garde && admin) v.note(c, getString(R.string.simple_pret))
+        lienChangerMode(c)
+    }
+
+    private fun carteRestaurer() {
+        val c = v.carte(racine, v.pal.fondOrange, null)
+        v.entete(c, R.drawable.ic_warning, getString(R.string.restaurer_titre), v.pal.orange)
+        v.note(c, getString(R.string.restaurer_texte, Etat(this).paquetsRetires.joinToString(", ")))
+        v.bouton(c, getString(R.string.restaurer), R.drawable.ic_refresh, v.pal.orange) {
+            action(R.string.ok_restaure) { if (Installation.restaurer(this)) null else getString(R.string.err_restaurer) }
+        }
+    }
+
+    private fun ouvrirShizukuBoutique() = ouvrir(
+        Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${Installation.PAQUET_SHIZUKU}")),
+        Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/RikkaApps/Shizuku/releases")),
+    )
+
+    private fun ouvrirShizuku() {
+        val i = packageManager.getLaunchIntentForPackage(Installation.PAQUET_SHIZUKU)
+        if (i != null) ouvrir(i) else ouvrirShizukuBoutique()
+    }
+
+    /** Ouvre le premier écran disponible parmi ceux proposés. */
+    private fun ouvrir(vararg intentions: Intent) {
+        for (i in intentions) {
+            try { startActivity(i); return } catch (e: Exception) { }
+        }
+        dire(getString(R.string.err_ouvrir))
     }
 
     private fun carteDetection(e: Etat) {

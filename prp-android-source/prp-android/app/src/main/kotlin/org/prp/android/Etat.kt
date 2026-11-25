@@ -60,7 +60,23 @@ class Etat(ctx: Context) {
         get() = p.getInt("theme", 0)
         set(v) { p.edit().putInt("theme", v.coerceIn(0, 2)).commit() }
 
+    /** Mode choisi dans l'assistant : 0 = pas encore choisi, 1 = Fort, 2 = Simple. */
+    var mode: Int
+        get() = p.getInt("mode", 0)
+        set(v) { p.edit().putInt("mode", v.coerceIn(0, 2)).commit() }
+
+    /** Applications retirées un instant pendant l'installation du Mode Fort, à remettre. */
+    var paquetsRetires: List<String>
+        get() = (p.getString("paquets_retires", "") ?: "").split(',').filter { it.isNotBlank() }
+        set(v) { p.edit().putString("paquets_retires", v.joinToString(",")).commit() }
+
     var echecsReseau: Int
         get() = p.getInt("echecs_reseau", 0)
         set(v) { p.edit().putInt("echecs_reseau", v).commit() }
+
+    companion object {
+        const val MODE_AUCUN = 0
+        const val MODE_FORT = 1
+        const val MODE_SIMPLE = 2
+    }
 }

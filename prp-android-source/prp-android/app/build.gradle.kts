@@ -11,8 +11,8 @@ android {
         applicationId = "org.prp.android"
         minSdk = 29          // Android 10 : DNS privé imposé par le propriétaire de l'appareil
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.0-a5"
+        versionCode = 6
+        versionName = "1.0-a6"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
@@ -48,5 +48,8 @@ android {
 
 dependencies {
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+    // Mode Fort sans PC : commandes adb par le débogage sans fil (application Shizuku)
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
     testImplementation("junit:junit:4.13.2")
 }

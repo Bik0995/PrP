@@ -17,7 +17,8 @@ object Verrou {
     fun verrouiller(ctx: Context, dureeS: Long, delaiS: Long): String? {
         val e = Etat(ctx)
         if (e.verrouActif) return ctx.getString(R.string.err_deja)
-        if (!Protections.estProprietaire(ctx)) return ctx.getString(R.string.err_pas_proprio)
+        if (!Protections.estProprietaire(ctx) && !(Protections.modeSimple(ctx) && Protections.simplePret(ctx)))
+            return ctx.getString(R.string.err_pas_proprio)
         if (dureeS < DUREE_MIN_S || delaiS < DUREE_MIN_S) return ctx.getString(R.string.err_min)
         val r = Drand.rondeActuelle() ?: return ctx.getString(R.string.err_reseau)
         e.rondeCible = nouvelleCible(r, 0, dureeS)

@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.provider.Browser
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 import org.prp.android.filtre.Filtre
 import org.prp.android.detection.Detection
 import org.prp.android.filtre.Verdict
@@ -37,6 +38,17 @@ class GardeService : AccessibilityService() {
     private var dernierBlocage = 0L
     private var recepteurInscrit = false
     private var detection: Detection? = null
+
+    // Mode Simple pendant le verrou : les pages qui permettraient de retirer PrP sont fermées.
+    private var lectureMode = 0L
+    private var simpleVerrouille = false
+    private var reglagePrevu: String? = null
+    private var dernierRefus = 0L
+    private val examenReglages = Runnable {
+        val p = reglagePrevu
+        reglagePrevu = null
+        if (p != null) examinerReglages(p)
+    }
 
     private val examen = Runnable {
         examenPrevu = false
@@ -99,6 +111,13 @@ class GardeService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val paquet = event?.packageName?.toString() ?: return
+        if (estSensible(paquet) && estSimpleVerrouille() &&
+            (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+                event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+        ) {
+            if (reglagePrevu == null) principal.postDelayed(examenReglages, 120L)
+            reglagePrevu = paquet
+        }
         if (paquet != packageName) when (event.eventType) {
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> detection?.surDefilement()
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> detection?.surContenu()
@@ -148,6 +167,52 @@ class GardeService : AccessibilityService() {
             for (i in 0 until n.childCount) n.getChild(i)?.let { file.add(it) }
         }
         return null
+    }
+
+    private fun estSensible(paquet: String) = paquet in REGLAGES || "packageinstaller" in paquet
+
+    private fun estSimpleVerrouille(): Boolean {
+        val t = SystemClock.uptimeMillis()
+        if (t - lectureMode > 3000L) {
+            lectureMode = t
+            simpleVerrouille = try {
+                Etat(this).verrouActif && !Protections.estProprietaire(this)
+            } catch (e: Exception) { false }
+        }
+        return simpleVerrouille
+    }
+
+    /** Ferme la page si elle concerne PrP (fiche de l'application, garde, administrateur, désinstallation). */
+    private fun examinerReglages(paquet: String) {
+        val racine = try { rootInActiveWindow } catch (e: Exception) { null } ?: return
+        if (racine.packageName?.toString() != paquet) return
+        val installeur = "packageinstaller" in paquet
+        var visee = false
+        val file = ArrayDeque<AccessibilityNodeInfo>()
+        file.add(racine)
+        var vus = 0
+        while (file.isNotEmpty() && vus < 600 && !visee) {
+            val n = file.removeFirst()
+            vus++
+            val t = (n.text ?: n.contentDescription)?.toString()?.trim().orEmpty()
+            if (t.isNotEmpty()) {
+                if (t in NOMS_GARDE) visee = true
+                else if (installeur && "PrP" in t) visee = true
+                else if (t == "PrP") {
+                    val id = n.viewIdResourceName.orEmpty()
+                    val parent = try { n.parent?.className?.toString().orEmpty() } catch (e: Exception) { "" }
+                    if (IDS_ENTETE.any { it in id } || "Toolbar" in parent) visee = true
+                }
+            }
+            for (i in 0 until n.childCount) n.getChild(i)?.let { file.add(it) }
+        }
+        if (!visee) return
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        val maintenant = SystemClock.uptimeMillis()
+        if (maintenant - dernierRefus > 3000L) {
+            dernierRefus = maintenant
+            Toast.makeText(this, getString(R.string.reglage_ferme), Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun bloquer(paquet: String, v: Verdict) {
@@ -210,6 +275,22 @@ class GardeService : AccessibilityService() {
     companion object {
         @Volatile var instance: GardeService? = null
         const val PAGE_SURE = "https://www.google.com/"
+
+        /** Applications de réglages où l'on peut arrêter, désactiver ou désinstaller PrP. */
+        val REGLAGES = setOf(
+            "com.android.settings", "com.samsung.android.settings", "com.miui.securitycenter",
+            "com.coloros.safecenter", "com.oplus.safecenter", "com.huawei.systemmanager",
+            "com.samsung.android.lool", "com.miui.cleanmaster",
+        )
+
+        /** Nom de la garde dans les réglages d'accessibilité (dans les trois langues). */
+        val NOMS_GARDE = setOf("PrP – Garde", "PrP – Guard", "PrP – Защита")
+
+        /** Identifiants des titres de page où le nom d'une application désigne la page elle-même. */
+        val IDS_ENTETE = listOf(
+            "entity_header_title", "admin_name", "alertTitle", "app_name", "app_title",
+            "title_bar", "action_bar_title", "header_title", "app_detail_name",
+        )
 
         /** Identifiant de la barre d'adresse des navigateurs courants. */
         val IDS_BARRE: Map<String, List<String>> = mapOf(
