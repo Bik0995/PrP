@@ -20,6 +20,12 @@ document `PrP-architecture-android.md` du projet.
 - `outils/secours-essai.bat` — retire la version d'essai, même verrouillée.
 - `signature/prp-essai.jks` — clé d'ESSAI (mot de passe `prp-essai`). À remplacer avant publication.
 
+## Installation sur le téléphone (a6)
+Au premier lancement, PrP propose deux modes :
+- **Mode Fort (recommandé)** : sans PC, Android 11+. L'assistant guide pas à pas (Shizuku, débogage sans fil, comptes Google à retirer un instant) puis rend PrP propriétaire de l'appareil. Code : `Installation.kt`.
+- **Mode Simple** : garde d'accessibilité + administrateur de l'appareil, en une minute.
+`outils/installer-android.bat` (PC) reste possible pour le Mode Fort.
+
 ## Compiler
 - **Android Studio** : ouvrir ce dossier, puis Build > Build APK(s).
 - **Ligne de commande** : `gradlew assembleDebug assembleRelease` (JDK 17 + SDK Android 34).
