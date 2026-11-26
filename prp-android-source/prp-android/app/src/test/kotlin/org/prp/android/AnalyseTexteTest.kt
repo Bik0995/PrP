@@ -43,7 +43,7 @@ class AnalyseTexteTest {
     }
 
     @Test fun recherches() {
-        val r = AnalyseTexte::rechercheAdulte
+        val r = { q: String -> AnalyseTexte.rechercheAdulte(q) }
         // refusées
         for (q in listOf("porn", "porno russe", "порно", "xxx video", "hentai", "milf", "سكس", "エロ動画",
             "sex video", "free sex", "nude girls", "сиськи секс", "fuck girls nude", "pornhub", "sexo y desnudas",
