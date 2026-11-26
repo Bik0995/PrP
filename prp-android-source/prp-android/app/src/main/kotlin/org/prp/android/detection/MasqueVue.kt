@@ -8,7 +8,7 @@ import android.graphics.RectF
 import android.view.View
 
 /** Un masque à dessiner : rectangle en pixels d'écran, image floutée facultative, et sa nature. */
-class Masque(val rect: RectF, val flou: Bitmap?, val image: Boolean)
+class Masque(val rect: RectF, val flou: Bitmap?, val image: Boolean, val etiquette: String? = null)
 
 /**
  * Fenêtre posée par-dessus tout l'écran. Chaque image visée est recouverte par sa propre
@@ -19,6 +19,11 @@ class MasqueVue(ctx: Context) : View(ctx) {
     private val plein = Paint().apply { color = COULEUR }
     private val dessin = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val r = RectF()
+    private val texte = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFFFFF.toInt()
+        textSize = 11f * ctx.resources.displayMetrics.scaledDensity
+    }
+    private val fondTexte = Paint().apply { color = 0xCC000000.toInt() }
     private val origine = IntArray(2)
 
     var masques: List<Masque> = emptyList()
@@ -33,6 +38,13 @@ class MasqueVue(ctx: Context) : View(ctx) {
             val f = m.flou
             if (f != null && !f.isRecycled) canvas.drawBitmap(f, null, r, dessin)
             else canvas.drawRect(r, plein)
+            // version d'essai : pourquoi ce flou est apparu
+            m.etiquette?.let {
+                val l = texte.measureText(it) + 12f
+                val h = texte.textSize + 10f
+                canvas.drawRect(r.left, r.top, r.left + l, r.top + h, fondTexte)
+                canvas.drawText(it, r.left + 6f, r.top + h - 7f, texte)
+            }
         }
     }
 

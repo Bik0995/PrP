@@ -78,8 +78,9 @@ class DetectionTest {
         )
         assertEquals(listOf(1, 2), Classement.candidats(zones, 1080f, 2400f))
         val t = Classement.tuiles(1080f, 2400f)
-        assertEquals(6, t.size)
-        assertEquals(1080f * 2400f, t.sumOf { it.aire.toDouble() }.toFloat(), 1f)
+        assertEquals(8, t.size)                                   // grille 2 x 3 + 2 cases décalées
+        assertEquals(1080f * 2400f, t.take(6).sumOf { it.aire.toDouble() }.toFloat(), 1f)
+        assertEquals(Zone(270f, 400f, 810f, 1200f), t[6])         // à cheval sur 4 cases
     }
 
     @Test fun flouUniforme() {

@@ -45,7 +45,7 @@ object Classement {
      * demande un peu plus de certitude, car il coupe souvent les personnes.
      */
     fun aFlouter(p: FloatArray, marqo: Float, sensibilite: Int, enfant: Boolean, tuile: Boolean = false): Boolean {
-        val bonus = if (tuile) 0.03f else 0f
+        val bonus = if (tuile) 0.05f else 0f
         val sens = if (enfant) 0 else sensibilite
         if (explicite(p, sens) && marqo >= (seuilMarqo(sens) + bonus).coerceAtMost(0.97f)) return true
         // mode enfant : le suggestif aussi, mais seulement si Marqo le trouve nettement osé
@@ -90,6 +90,10 @@ object Classement {
         val th = hEcran / lignes
         for (j in 0 until lignes) for (i in 0 until colonnes)
             res.add(Zone(i * tl, j * th, (i + 1) * tl, (j + 1) * th))
+        // deuxième grille décalée d'une demi-case : une personne coupée par la première
+        // grille est entière dans celle-ci
+        for (j in 0 until lignes - 1)
+            res.add(Zone(tl / 2, th / 2 + j * th, tl / 2 + tl, th / 2 + (j + 1) * th))
         return res
     }
 }

@@ -66,7 +66,14 @@ class Detection(
         val flou: Bitmap?,
         val empreinte: String,
         var visible: Boolean = true,
+        val etiquette: String? = null,
     )
+
+    /** Version d'essai : une étiquette sur chaque flou dit pourquoi il est apparu. */
+    private val essai = (service.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+    /** Images jugées pornographiques une fois : il faut une deuxième fois pour flouter (clé -> instant). */
+    private val soupcons = HashMap<String, Long>()
 
     private val cibles = ArrayList<Cible>()
     private var vue: MasqueVue? = null
@@ -137,6 +144,7 @@ class Detection(
         paquetAvant = paquet
         cibles.clear()
         synchronized(surs) { surs.clear() }
+        synchronized(soupcons) { soupcons.clear() }
         derniereSignature = null
         rafraichirVue()
     }
@@ -330,9 +338,9 @@ class Detection(
                 val (noeud, zone) = images[c.image]
                 val existante = cibles.firstOrNull { it.noeud == noeud }
                 if (existante != null) { existante.visible = true; existante.zone = zone; continue }
-                cibles.add(Cible(noeud, zone, flou(capture, zone), empreinte(noeud)))
+                cibles.add(Cible(noeud, zone, flou(capture, zone), empreinte(noeud), etiquette = if (essai) c.detail else null))
             } else {
-                cibles.add(Cible(null, c.region, flou(capture, c.region), ""))
+                cibles.add(Cible(null, c.region, flou(capture, c.region), "", etiquette = if (essai) c.detail else null))
             }
             while (cibles.size > MAX_CIBLES) cibles.removeAt(0)
         }
@@ -341,7 +349,7 @@ class Detection(
     // ------------------------------------------------------------------ affichage
 
     private fun rafraichirVue() {
-        val m = cibles.filter { it.visible }.map { Masque(RectF(it.zone.g, it.zone.h, it.zone.d, it.zone.b), it.flou, true) }
+        val m = cibles.filter { it.visible }.map { Masque(RectF(it.zone.g, it.zone.h, it.zone.d, it.zone.b), it.flou, true, it.etiquette) }
         DiagDetection.floutees = m.size
         if (m.isEmpty()) {
             vue?.masques = emptyList()
@@ -471,6 +479,7 @@ class Detection(
             val debut = System.nanoTime()
             val confirmees = ArrayList<Confirmee>()
             val details = ArrayList<String>()
+            var relancer = false
             for ((z, i, cle) in aAnalyser) {
                 val px = pixelsRegion(cap, z) ?: continue
                 val p = m.classer(px)
@@ -483,9 +492,23 @@ class Detection(
                         Classement.aFlouter(p, nsfw, sens, enfant, tuile)
                     } ?: false)
                 if (confirme) {
-                    val d = Classement.resume(p) + " · NSFW ${(nsfw * 100).toInt()}%"
-                    confirmees.add(Confirmee(z, i, d))
-                    details.add(d)
+                    // confirmation dans le temps : il faut deux jugements de suite (≤ 5 s)
+                    val cleSoupcon = if (i >= 0) empreinte(images[i].first) + "|" + z.l.toInt() + "x" + z.ht.toInt()
+                    else "tuile|" + z.g.toInt() + "," + z.h.toInt()
+                    val deja = synchronized(soupcons) {
+                        soupcons.entries.removeAll { maintenant - it.value > 5_000L }
+                        val v = soupcons.remove(cleSoupcon) != null
+                        if (!v) soupcons[cleSoupcon] = maintenant
+                        v
+                    }
+                    if (deja) {
+                        val d = (if (i >= 0) "image" else "morceau d'écran") + " · " + Classement.resume(p) +
+                            " · NSFW ${(nsfw * 100).toInt()}%"
+                        confirmees.add(Confirmee(z, i, d))
+                        details.add(d)
+                    } else {
+                        relancer = true
+                    }
                 } else if (cle != null) {
                     synchronized(surs) {
                         surs[cle] = maintenant
@@ -493,6 +516,8 @@ class Detection(
                     }
                 }
             }
+            // un soupçon attend sa confirmation : la prochaine analyse a lieu même si l'écran n'a pas changé
+            if (relancer) derniereSignature = null
             DiagDetection.analyses++
             DiagDetection.dernierMs = (System.nanoTime() - debut) / 1_000_000L
             DiagDetection.dernierDetail = details.joinToString()
