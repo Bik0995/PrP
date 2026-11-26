@@ -185,6 +185,7 @@
     <string name="tiens_bon">Tu as choisi ce blocage toi-même. Tiens bon.</string>
     <string name="raison_mot_cle">nom de site explicite</string>
     <string name="raison_appris">site reconnu à ses images</string>
+    <string name="raison_texte">site reconnu à son contenu (texte de la page)</string>
     <string name="oublier_appris">Oublier ces sites</string>
     <string name="oublier_appris_texte">Les sites bloqués d\'après leurs images seront de nouveau ouverts (leurs images resteront floutées).</string>
     <string name="raison_liste">liste de sites pour adultes</string>
@@ -223,9 +224,9 @@
         <item quantity="other">%d autres comptes : PrP s\'en charge.</item>
     </plurals>
     <plurals name="p_sites_appris">
-        <item quantity="one">%d site bloqué d\'après ses images (plusieurs images pornographiques floutées en peu de temps).</item>
-        <item quantity="many">%d sites bloqués d\'après leurs images (plusieurs images pornographiques floutées en peu de temps).</item>
-        <item quantity="other">%d sites bloqués d\'après leurs images (plusieurs images pornographiques floutées en peu de temps).</item>
+        <item quantity="one">%d site bloqué d\'après ses images (images ou texte de la page).</item>
+        <item quantity="many">%d sites bloqués d\'après leurs images (images ou texte de la page).</item>
+        <item quantity="other">%d sites bloqués d\'après leurs images (images ou texte de la page).</item>
     </plurals>
     <plurals name="p_mois">
         <item quantity="one">%d mois</item>

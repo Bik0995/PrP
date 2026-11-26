@@ -7,6 +7,7 @@ enum class Raison(val libelle: String) {
     LISTE("liste de sites pour adultes"),
     MOTEUR("moteur de recherche impossible à filtrer"),
     APPRIS("site reconnu à ses images"),
+    TEXTE("site reconnu à son contenu"),
 }
 
 data class Verdict(val bloque: Boolean, val hote: String = "", val raison: Raison? = null)
@@ -138,6 +139,8 @@ class Filtre(private val liste: ListeSites, appris: Collection<String> = emptyLi
             val m = BLOGSPOT.matchEntire(hote) ?: return hote
             return (m.groupValues[1]) + "blogspot.com"
         }
+
+        fun estInstitution(hote: String): Boolean = INSTITUTION.containsMatchIn(hote)
 
         fun contientMotCle(hote: String): Boolean {
             if (TLD_ADULTES.any { hote.endsWith(it) }) return true

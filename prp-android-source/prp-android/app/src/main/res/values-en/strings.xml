@@ -184,6 +184,7 @@
     <string name="tiens_bon">You chose this block yourself. Hold on.</string>
     <string name="raison_mot_cle">explicit site name</string>
     <string name="raison_appris">site recognised by its images</string>
+    <string name="raison_texte">site recognised by its content (page text)</string>
     <string name="oublier_appris">Forget these sites</string>
     <string name="oublier_appris_texte">Sites blocked because of their images will open again (their images stay blurred).</string>
     <string name="raison_liste">adult site list</string>
@@ -217,8 +218,8 @@
         <item quantity="other">%d other accounts: PrP takes care of them.</item>
     </plurals>
     <plurals name="p_sites_appris">
-        <item quantity="one">%d site blocked because of its images (several pornographic images blurred within a short time).</item>
-        <item quantity="other">%d sites blocked because of their images (several pornographic images blurred within a short time).</item>
+        <item quantity="one">%d site blocked because of its images (images or page text).</item>
+        <item quantity="other">%d sites blocked because of their images (images or page text).</item>
     </plurals>
     <plurals name="p_mois">
         <item quantity="one">%d month</item>

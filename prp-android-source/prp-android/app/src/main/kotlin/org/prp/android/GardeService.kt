@@ -15,6 +15,7 @@ import android.provider.Browser
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
+import org.prp.android.filtre.AnalyseTexte
 import org.prp.android.filtre.Apprentissage
 import org.prp.android.filtre.Filtre
 import org.prp.android.filtre.ListeSites
@@ -128,6 +129,11 @@ class GardeService : AccessibilityService() {
             (paquet != packageName || event.className?.toString()?.endsWith("Activity") == true)
         ) detection?.surPaquet(paquet)
         if (filtre == null || paquet == packageName || paquet !in navigateurs) return
+        // Lecture du texte de la page : au plus une fois par seconde et demie, après les changements.
+        if (!lecturePrevue) {
+            lecturePrevue = true
+            principal.postDelayed(lecture, 1_500L)
+        }
         // Un seul examen à la fois, légèrement différé : on lit l'état final de la page.
         if (!examenPrevu) {
             examenPrevu = true
@@ -148,6 +154,50 @@ class GardeService : AccessibilityService() {
         }
         val v = f.verifierUrl(texte)
         if (v.bloque) bloquer(paquet, v)
+    }
+
+    // ---------------------------------------------------------------- texte de la page
+    // Dans tous les onglets (y compris en navigation privée, où l'écran n'est pas visible),
+    // le vocabulaire de la page est jugé : une page pornographique, même d'un site inconnu,
+    // est bloquée et le site est retenu.
+    private var lecturePrevue = false
+    private var derniereLecture = ""
+    private val lecture = Runnable {
+        lecturePrevue = false
+        try { lireTexte() } catch (e: Exception) { }
+    }
+
+    private fun lireTexte() {
+        val f = filtre ?: return
+        val racine = try { rootInActiveWindow } catch (e: Exception) { null } ?: return
+        val paquet = racine.packageName?.toString() ?: return
+        if (paquet !in navigateurs || paquet != paquetVu) return
+        val h = hoteVu ?: return
+        if (AnalyseTexte.estInformation(h) || Filtre.estInstitution(h)) return
+        val sb = StringBuilder()
+        val pile = ArrayDeque<AccessibilityNodeInfo>()
+        pile.add(racine)
+        var vus = 0
+        while (pile.isNotEmpty() && vus < 2500 && sb.length < 30_000) {
+            val n = pile.removeLast()
+            vus++
+            n.text?.let { if (it.length < 400) sb.append(it).append(' ') }
+            n.contentDescription?.let { if (it.length < 400) sb.append(it).append(' ') }
+            for (i in n.childCount - 1 downTo 0) n.getChild(i)?.let { pile.add(it) }
+        }
+        val texte = sb.toString()
+        if (texte == derniereLecture) return
+        derniereLecture = texte
+        val r = AnalyseTexte.evaluer(texte)
+        if (!r.adulte) return
+        val appris = Apprentissage.nettoyer(h) ?: return
+        if (Apprentissage.estPlateforme(appris)) return
+        f.apprendre(appris)
+        fond.execute {
+            val e = Etat(this)
+            e.sitesAppris = e.sitesAppris + appris
+        }
+        bloquer(paquet, Verdict(true, h, Raison.TEXTE))
     }
 
     // ---------------------------------------------------------------- apprentissage
