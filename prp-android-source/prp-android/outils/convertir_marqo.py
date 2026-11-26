@@ -11,7 +11,7 @@ print("configuration :", cfg, "classes :", noms)
 c, h, l = cfg["input_size"]
 x = torch.rand(2, c, h, l)
 torch.onnx.export(m, x[:1], "marqo_nsfw_384.onnx", input_names=["entree"], output_names=["logits"],
-                  opset_version=17, do_constant_folding=True)
+                  opset_version=17, do_constant_folding=True, dynamo=False)
 with torch.no_grad():
     ref = m(x).numpy()
 s = ort.InferenceSession("marqo_nsfw_384.onnx")
