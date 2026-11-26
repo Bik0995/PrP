@@ -4,15 +4,16 @@ package org.prp.android.detection
 object Pretraitement {
 
     /** Pixels ARGB vers trois plans R, G, B normalisés de 0 à 1 (ordre attendu par le modèle). */
-    fun versCHW(pixels: IntArray, l: Int, h: Int): FloatArray {
+    /** Pixels ARGB vers rouge, vert, bleu séparés, valeurs (x / 255 - moyenne) / écart-type. */
+    fun versCHW(pixels: IntArray, l: Int, h: Int, moyenne: Float = 0f, ecartType: Float = 1f): FloatArray {
         val plan = l * h
         require(pixels.size >= plan)
         val sortie = FloatArray(3 * plan)
         for (i in 0 until plan) {
             val p = pixels[i]
-            sortie[i] = ((p shr 16) and 255) / 255f
-            sortie[plan + i] = ((p shr 8) and 255) / 255f
-            sortie[2 * plan + i] = (p and 255) / 255f
+            sortie[i] = (((p shr 16) and 255) / 255f - moyenne) / ecartType
+            sortie[plan + i] = (((p shr 8) and 255) / 255f - moyenne) / ecartType
+            sortie[2 * plan + i] = ((p and 255) / 255f - moyenne) / ecartType
         }
         return sortie
     }

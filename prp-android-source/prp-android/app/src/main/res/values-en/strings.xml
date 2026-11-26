@@ -109,7 +109,7 @@
     <string name="theme_sombre">Dark</string>
     <string name="actualiser">Refresh</string>
     <string name="a_propos">About</string>
-    <string name="a_propos_texte">PrP %1$s\n\nDetection model: NSFWJS MobileNetV2 (MIT).\nIcons: Material Icons (Apache 2.0).\nSite lists: The Block List Project (Unlicense), Université Toulouse Capitole UT1 (CC BY-SA 4.0).\nTrusted time: drand (League of Entropy).\nSetup without a PC: Shizuku API (MIT).</string>
+    <string name="a_propos_texte">PrP %1$s\n\nDetection models: NSFWJS MobileNetV2 (MIT), Marqo nsfw-image-detection-384 (Apache 2.0).\nIcons: Material Icons (Apache 2.0).\nSite lists: The Block List Project (Unlicense), Université Toulouse Capitole UT1 (CC BY-SA 4.0).\nTrusted time: drand (League of Entropy).\nSetup without a PC: Shizuku API (MIT).</string>
     <string name="choix_titre">Set up PrP</string>
     <string name="choix_texte">Choose how PrP protects this phone. You can change it as long as the lock is not set.</string>
     <string name="mode_fort">Strong mode</string>

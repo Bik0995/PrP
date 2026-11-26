@@ -12,3 +12,6 @@
 Aucun code sous licence « copyleft » (GPL, AGPL) : le code de PrP peut rester fermé ou être publié sous la licence de son choix, à condition de joindre ces avis de licence. Ce n'est pas un avis juridique.
 
 Composants retirés en 1.0-a7 : NudeNet 320n (AGPL-3.0, basé sur Ultralytics YOLOv8) et la liste HaGeZi NSFW (GPL-3.0).
+
+## Ajout 1.0-a10
+| Marqo nsfw-image-detection-384 (`assets/marqo_nsfw_384.onnx`), huggingface.co/Marqo/nsfw-image-detection-384 | deuxième avis de la détection d'images (NSFW / SFW, 384 px) | Apache 2.0. Converti en ONNX par `outils/convertir_marqo.py` sur GitHub Actions (écart PyTorch / ONNX : 1e-6). |

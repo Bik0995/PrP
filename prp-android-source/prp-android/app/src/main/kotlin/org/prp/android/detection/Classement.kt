@@ -16,14 +16,41 @@ object Classement {
     const val COTE = 224
 
     /**
-     * Score de l'image : pornographie et hentaï seulement. « Sexy » (maillots, sous-vêtements,
-     * peau nue sans acte sexuel : bras, jambes, pieds, torses) ne compte qu'en mode enfant.
+     * Deux modèles indépendants doivent être d'accord :
+     *  - NSFWJS (MIT) : la catégorie la plus probable doit être Porn ou Hentai (Sexy en plus en
+     *    mode enfant), avec un score suffisant ;
+     *  - Marqo nsfw-image-detection-384 (Apache 2.0) : probabilité « NSFW » élevée.
+     * Une photo de sport ou de plage peut tromper l'un des deux, rarement les deux à la fois.
+     * Sensibilité : 0 = stricte, 1 = normale, 2 = souple.
      */
-    fun score(p: FloatArray, enfant: Boolean): Float =
-        p[PORNO] + p[HENTAI] + (if (enfant) p[SEXY] else 0f)
+    fun seuilNsfwjs(sensibilite: Int): Float = when (sensibilite) { 0 -> 0.50f; 2 -> 0.75f; else -> 0.60f }
 
-    /** Sensibilité : 0 = stricte, 1 = normale, 2 = souple. Seuils hauts : la peau seule ne suffit pas. */
-    fun seuil(sensibilite: Int): Float = when (sensibilite) { 0 -> 0.65f; 2 -> 0.90f; else -> 0.80f }
+    fun seuilMarqo(sensibilite: Int): Float = when (sensibilite) { 0 -> 0.75f; 2 -> 0.92f; else -> 0.85f }
+
+    /** Pornographie (ou hentaï) selon NSFWJS. */
+    private fun explicite(p: FloatArray, sensibilite: Int): Boolean {
+        val d = dominante(p)
+        return (d == PORNO || d == HENTAI) && p[PORNO] + p[HENTAI] >= seuilNsfwjs(sensibilite)
+    }
+
+    /** Suggestif selon NSFWJS (mode enfant seulement). */
+    private fun suggestif(p: FloatArray): Boolean = dominante(p) == SEXY && p[SEXY] >= 0.5f
+
+    /** Premier tri, avec NSFWJS seul : faut-il demander l'avis de Marqo ? */
+    fun suspect(p: FloatArray, sensibilite: Int, enfant: Boolean): Boolean =
+        explicite(p, if (enfant) 0 else sensibilite) || (enfant && suggestif(p))
+
+    /**
+     * Décision finale. [marqo] : probabilité « NSFW » de Marqo. Un morceau d'écran ([tuile])
+     * demande un peu plus de certitude, car il coupe souvent les personnes.
+     */
+    fun aFlouter(p: FloatArray, marqo: Float, sensibilite: Int, enfant: Boolean, tuile: Boolean = false): Boolean {
+        val bonus = if (tuile) 0.03f else 0f
+        val sens = if (enfant) 0 else sensibilite
+        if (explicite(p, sens) && marqo >= (seuilMarqo(sens) + bonus).coerceAtMost(0.97f)) return true
+        // mode enfant : le suggestif aussi, mais seulement si Marqo le trouve nettement osé
+        return enfant && suggestif(p) && marqo >= 0.75f + bonus
+    }
 
     /** Catégorie la plus probable. */
     fun dominante(p: FloatArray): Int {

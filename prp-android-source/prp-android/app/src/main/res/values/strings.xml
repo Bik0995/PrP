@@ -110,7 +110,7 @@
     <string name="theme_sombre">Sombre</string>
     <string name="actualiser">Actualiser</string>
     <string name="a_propos">À propos</string>
-    <string name="a_propos_texte">PrP %1$s\n\nModèle de détection : NSFWJS MobileNetV2 (MIT).\nIcônes : Material Icons (Apache 2.0).\nListes de sites : The Block List Project (Unlicense), Université Toulouse Capitole UT1 (CC BY-SA 4.0).\nHeure fiable : drand (League of Entropy).\nConfiguration sans PC : Shizuku API (MIT).</string>
+    <string name="a_propos_texte">PrP %1$s\n\nModèles de détection : NSFWJS MobileNetV2 (MIT), Marqo nsfw-image-detection-384 (Apache 2.0).\nIcônes : Material Icons (Apache 2.0).\nListes de sites : The Block List Project (Unlicense), Université Toulouse Capitole UT1 (CC BY-SA 4.0).\nHeure fiable : drand (League of Entropy).\nConfiguration sans PC : Shizuku API (MIT).</string>
     <string name="choix_titre">Installer PrP</string>
     <string name="choix_texte">Choisis comment PrP protège ce téléphone. Tu pourras changer tant que le verrou n\'est pas posé.</string>
     <string name="mode_fort">Mode Fort</string>

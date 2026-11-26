@@ -72,6 +72,8 @@ class Detection(
     private var vue: MasqueVue? = null
     private var vueAjoutee = false
     private var classifieur: Classifieur? = null
+    /** Deuxième avis (Marqo) : consulté seulement pour les images que NSFWJS trouve suspectes. */
+    private var arbitre: Classifieur? = null
     private var actif = false
     private var enCours = false
     private var derniereSignature: IntArray? = null
@@ -123,6 +125,8 @@ class Detection(
         fond.execute {
             classifieur?.close()
             classifieur = null
+            arbitre?.close()
+            arbitre = null
             DiagDetection.modeleCharge = false
         }
     }
@@ -173,10 +177,12 @@ class Detection(
     // ------------------------------------------------------------------ modèle
 
     private fun chargerModele() {
-        if (classifieur != null) return
+        if (classifieur != null && arbitre != null) return
         try {
             val octets = service.assets.open(MODELE).use { it.readBytes() }
             classifieur = Classifieur(octets)
+            val octetsArbitre = service.assets.open(MODELE_ARBITRE).use { it.readBytes() }
+            arbitre = Classifieur(octetsArbitre, COTE_ARBITRE, 0.5f, 0.5f)
             DiagDetection.modeleCharge = true
             DiagDetection.erreur = null
         } catch (e: Throwable) {
@@ -291,10 +297,10 @@ class Detection(
     }
 
     /**
-     * Découpe une région de la capture et la ramène à 224 x 224 pixels pour le modèle.
+     * Découpe une région de la capture et la ramène à [c] x [c] pixels pour un modèle.
      * [centre] : seulement le carré central de la région (deuxième avis, sans déformation).
      */
-    private fun pixelsRegion(capture: Bitmap, z: Zone, centre: Boolean = false): IntArray? {
+    private fun pixelsRegion(capture: Bitmap, z: Zone, centre: Boolean = false, c: Int = Classement.COTE): IntArray? {
         var x = z.g.toInt().coerceIn(0, capture.width - 1)
         var y = z.h.toInt().coerceIn(0, capture.height - 1)
         var l = (z.d.toInt() - x).coerceAtMost(capture.width - x)
@@ -307,7 +313,6 @@ class Detection(
             h = cote
         }
         if (l < 16 || h < 16) return null
-        val c = Classement.COTE
         val morceau = Bitmap.createBitmap(capture, x, y, l, h)
         val reduit = Bitmap.createScaledBitmap(morceau, c, c, true)
         if (morceau !== reduit) morceau.recycle()
@@ -415,6 +420,7 @@ class Detection(
         var capture: Bitmap? = null
         try {
             val m = classifieur ?: return
+            val a = arbitre ?: return
             val ecranL = image.width
             val ecranH = image.height
             val cap = image.copy(Bitmap.Config.ARGB_8888, false) ?: return
@@ -469,11 +475,15 @@ class Detection(
                 val px = pixelsRegion(cap, z) ?: continue
                 val p = m.classer(px)
                 val tuile = i < 0
-                // deuxième avis sur le carré central : les deux doivent être d'accord
-                val confirme = Classement.aFlouter(p, sens, enfant, tuile) &&
-                    (pixelsRegion(cap, z, centre = true)?.let { Classement.aFlouter(m.classer(it), sens, enfant, tuile) } ?: true)
+                // deuxième avis, d'un autre modèle : les deux doivent être d'accord
+                var nsfw = 0f
+                val confirme = Classement.suspect(p, sens, enfant) &&
+                    (pixelsRegion(cap, z, c = a.cote)?.let {
+                        nsfw = probabilitePremiere(a.classer(it))
+                        Classement.aFlouter(p, nsfw, sens, enfant, tuile)
+                    } ?: false)
                 if (confirme) {
-                    val d = Classement.resume(p)
+                    val d = Classement.resume(p) + " · NSFW ${(nsfw * 100).toInt()}%"
                     confirmees.add(Confirmee(z, i, d))
                     details.add(d)
                 } else if (cle != null) {
@@ -518,6 +528,8 @@ class Detection(
         const val MAX_SURS = 300
         const val DUREE_SUR_MS = 10_000L
         const val MODELE = "nsfwjs_mobilenet_v2.onnx"
+        const val MODELE_ARBITRE = "marqo_nsfw_384.onnx"
+        const val COTE_ARBITRE = 384
         private val IGNORES = setOf("com.android.systemui")
     }
 }
