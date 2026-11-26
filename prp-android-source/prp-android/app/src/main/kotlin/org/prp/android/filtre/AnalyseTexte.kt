@@ -22,7 +22,7 @@ object AnalyseTexte {
 
     /**
      * Familles FORTES : vocabulaire qu'on ne trouve presque que sur un site pornographique.
-     * Formes cherchées en minuscules, comme sous-chaînes (les langues sans espaces l'exigent).
+     * Formes cherchées en minuscules, en début de mot (voir contientMot).
      */
     val FORTES = listOf(
         f("porno", "porn", "порн", "pornô", "پورن", "포르노", "पोर्न", "πορνο", "פורנו", "ポルノ", "色情", "黄片",
@@ -30,12 +30,12 @@ object AnalyseTexte {
         f("xxx", "xxx"),
         f("hentai", "hentai", "хентай", "変態", "헨타이"),
         f("fellation", "blowjob", "blow job", "минет", "pompino", "mamada", "boquete", "fellation", "oral sex"),
-        f("éjaculation", "cumshot", "creampie", "bukkake", "кончил", "кончает", "facial cum", "corrida", "gozada", "sborra",
+        f("éjaculation", "cumshot", "creampie", "bukkake", "facial cum", "gozada", "sborra",
             "中出し", "ぶっかけ", "内射", "颜射"),
         f("groupe", "gangbang", "gang bang", "threesome", "групповуха", "orgy", "orgie", "orgía", "suruba"),
         f("gorge", "deepthroat", "deep throat"),
-        f("masturbation", "handjob", "masturbat", "мастурб", "дрочит", "дрочка", "paja", "punheta", "branlette"),
-        f("milf", "milf", "мамки", "maduras", "coroas"),
+        f("masturbation", "handjob", "masturbat", "мастурб", "дрочит", "дрочка", "punheta", "branlette"),
+        f("milf", "milf"),
         f("vedette", "pornstar", "porn star", "порнозвезд", "pornoactriz", "av女優", "av女优"),
         f("non censuré", "uncensored", "無修正", "无码", "без цензуры", "sin censura"),
         f("sexe vidéo", "sex video", "sex videos", "sex tape", "sextape", "free sex", "hot sex", "секс видео",
@@ -46,7 +46,7 @@ object AnalyseTexte {
             "chicas desnudas", "mulheres peladas", "filles nues"),
         f("anal", "anal sex", "sexo anal", "анальн", "anale", "анал "),
         f("vulgaire", "fuck", "fucked", "fucking", "pussy", "трах", "ебл", "ебёт", "ебет", "follando", "cogiendo",
-            "transando", "scopata", "baise", "salope", "ficken", "fickt", "sikiş", "siktir", "做爱", "섹스",
+            "transando", "scopata", "salope", "ficken", "fickt", "sikiş", "siktir", "做爱", "섹스",
             "ngentot", "memek", "चुदाई", "เย็ด", "نيك", "شرموط", "منيوك"),
         f("sites", "xvideos", "xnxx", "pornhub", "xhamster", "redtube", "youporn", "spankbang", "chaturbate",
             "stripchat", "bongacams", "onlyfans leak", "brazzers"),
@@ -84,17 +84,18 @@ object AnalyseTexte {
         val trouvees = ArrayList<String>()
         var fortes = 0
         var moyennes = 0
-        for (fa in FORTES) if (fa.formes.any { t.contains(it) }) { fortes++; trouvees += fa.nom }
+        for (fa in FORTES) if (fa.formes.any { contientMot(t, it) }) { fortes++; trouvees += fa.nom }
         for (fa in MOYENNES) if (fa.formes.any { contientMot(t, it) }) { moyennes++; trouvees += fa.nom }
         return Resultat(fortes, moyennes, trouvees)
     }
 
     /**
-     * Pour les formes latines courtes (sex, gay, nude…), on exige un début de mot : « sex » ne
-     * doit pas compter dans « Sussex » ou « Essex ». Les écritures sans espaces sont cherchées telles quelles.
+     * On exige un début de mot : « sex » ne doit pas compter dans « Sussex », ni « трах » dans
+     * « страх », ni « anale » dans « canale ». Les écritures sans espaces entre les mots (chinois,
+     * japonais, coréen, thaï) sont cherchées telles quelles.
      */
     private fun contientMot(t: String, forme: String): Boolean {
-        if (forme.any { it.code > 0x24F }) return t.contains(forme)
+        if (forme.any { sansEspaces(it) }) return t.contains(forme)
         var i = t.indexOf(forme)
         while (i >= 0) {
             val avant = if (i == 0) ' ' else t[i - 1]
@@ -102,6 +103,11 @@ object AnalyseTexte {
             i = t.indexOf(forme, i + 1)
         }
         return false
+    }
+
+    private fun sansEspaces(c: Char): Boolean {
+        val k = c.code
+        return k in 0x0E00..0x0E7F || k in 0x3040..0x30FF || k in 0x3400..0x9FFF || k in 0xAC00..0xD7AF
     }
 
     /** Sites d'information générale et d'encyclopédie : jamais bloqués sur leur texte. */

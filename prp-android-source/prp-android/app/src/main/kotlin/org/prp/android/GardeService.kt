@@ -34,6 +34,8 @@ import java.util.concurrent.Executors
 class GardeService : AccessibilityService() {
 
     private val fond = Executors.newSingleThreadExecutor()
+    private val lecteur = Executors.newSingleThreadExecutor() // lecture du texte, hors du fil principal
+    private val lectureEnCours = java.util.concurrent.atomic.AtomicBoolean(false)
     private val principal = Handler(Looper.getMainLooper())
     @Volatile private var filtre: Filtre? = null
     @Volatile private var navigateurs: Set<String> = emptySet()
@@ -165,7 +167,11 @@ class GardeService : AccessibilityService() {
     private var derniereLecture = ""
     private val lecture = Runnable {
         lecturePrevue = false
-        try { lireTexte() } catch (e: Exception) { }
+        // la page peut compter des milliers d'éléments : on la parcourt sur un autre fil,
+        // une lecture à la fois, pour ne jamais retarder la garde de l'adresse
+        if (lectureEnCours.compareAndSet(false, true)) lecteur.execute {
+            try { lireTexte() } catch (e: Exception) { } finally { lectureEnCours.set(false) }
+        }
     }
 
     private fun lireTexte() {
@@ -174,6 +180,7 @@ class GardeService : AccessibilityService() {
         val paquet = racine.packageName?.toString() ?: return
         if (paquet !in navigateurs || paquet != paquetVu) return
         val h = hoteVu ?: return
+        if (SystemClock.uptimeMillis() - instantVu > 20_000L) return // adresse trop ancienne : pas sûr du site
         if (AnalyseTexte.estInformation(h) || Filtre.estInstitution(h)) return
         val sb = StringBuilder()
         val pile = ArrayDeque<AccessibilityNodeInfo>()
@@ -198,14 +205,14 @@ class GardeService : AccessibilityService() {
             val e = Etat(this)
             e.sitesAppris = e.sitesAppris + appris
         }
-        bloquer(paquet, Verdict(true, h, Raison.TEXTE))
+        principal.post { bloquer(paquet, Verdict(true, h, Raison.TEXTE)) }
     }
 
     // ---------------------------------------------------------------- apprentissage
     // Site affiché en dernier dans un navigateur, pour savoir où des images ont été floutées.
-    private var hoteVu: String? = null
-    private var paquetVu = ""
-    private var instantVu = 0L
+    @Volatile private var hoteVu: String? = null
+    @Volatile private var paquetVu = ""
+    @Volatile private var instantVu = 0L
     private val apprentissage = Apprentissage()
 
     /** Plusieurs images pornographiques floutées sur un même site : le site entier est bloqué. */

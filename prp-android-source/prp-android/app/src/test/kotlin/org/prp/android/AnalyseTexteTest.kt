@@ -33,6 +33,11 @@ class AnalyseTexteTest {
         assertFalse(adulte("University of Essex and Sussex: courses, admissions, student life, Middlesex campus"))
         // médecine (trachée)
         assertFalse(adulte("Трахея и бронхи: анатомия дыхательных путей, лечение трахеита у детей"))
+        // mots ordinaires qui contiennent un mot vulgaire (страх, закончил, банальный, canale, recogiendo)
+        assertFalse(adulte("Страхование жизни: страховой полис, страх перед будущим. Он закончил школу, " +
+            "банальный вопрос, канальный уровень. Колеблется курс. Голосование и выборы."))
+        assertFalse(adulte("Il canale televisivo trasmette gli annali. Estamos recogiendo y escogiendo frutas " +
+            "maduras. La corrida de toros. Un pájaro. On abaisse le prix. Coroas de ouro."))
     }
 
     @Test fun sitesDInformation() {
