@@ -20,6 +20,7 @@ import org.prp.android.filtre.Apprentissage
 import org.prp.android.filtre.Filtre
 import org.prp.android.filtre.ListeSites
 import org.prp.android.detection.Detection
+import org.prp.android.filtre.Raison
 import org.prp.android.filtre.Verdict
 import java.util.concurrent.Executors
 
