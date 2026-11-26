@@ -1,0 +1,12 @@
+Liste de sites « adult » de l'Université Toulouse Capitole (UT1)
+Auteur : Fabrice Prigent et contributeurs — https://dsi.ut-capitole.fr/blacklists/
+Copie utilisée : https://github.com/olbat/ut1-blacklists (catégorie blacklists/adult)
+Licence : Creative Commons Attribution - Partage dans les mêmes conditions 4.0 International
+(CC BY-SA 4.0) — https://creativecommons.org/licenses/by-sa/4.0/
+
+Modifications faites par PrP : seuls les domaines dont le nom contient aussi un indice adulte
+sont gardés ; les sites d'État, d'université et les grandes plateformes mixtes sont retirés ;
+les copies nationales de Blogspot sont ramenées à blogspot.com ; chaque domaine est remplacé
+par son hachage FNV-1a 64 bits (fichier assets/sites.bin, construit par outils/liste_sites.py).
+Le fichier assets/sites.bin, en tant que base de données adaptée, est diffusé sous la même
+licence CC BY-SA 4.0. Cette licence ne s'applique pas au code de PrP.

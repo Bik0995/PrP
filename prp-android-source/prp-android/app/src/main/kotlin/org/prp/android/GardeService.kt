@@ -15,6 +15,7 @@ import android.provider.Browser
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
+import org.prp.android.filtre.Apprentissage
 import org.prp.android.filtre.Filtre
 import org.prp.android.filtre.ListeSites
 import org.prp.android.detection.Detection
@@ -76,7 +77,7 @@ class GardeService : AccessibilityService() {
         fond.execute {
             navigateurs = listerNavigateurs()
             filtre = try {
-                Filtre(assets.open("sites.bin").use { ListeSites.charger(it) })
+                Filtre(assets.open("sites.bin").use { ListeSites.charger(it) }, Etat(this).sitesAppris)
             } catch (e: Exception) {
                 Filtre(ListeSites.VIDE) // la liste manque : les mots-clés restent actifs
             }
@@ -92,7 +93,7 @@ class GardeService : AccessibilityService() {
         Gardien.programmer(this)
         principal.post(tic)
         instance = this
-        detection = Detection(this)
+        detection = Detection(this) { paquet, n -> imagesFloutees(paquet, n) }
         majDetection()
     }
 
@@ -140,8 +141,41 @@ class GardeService : AccessibilityService() {
         val paquet = racine.packageName?.toString() ?: return
         if (paquet !in navigateurs) return
         val texte = try { lireBarre(racine, paquet) } catch (e: Exception) { null } ?: return
+        Filtre.extraireHote(texte)?.let {
+            hoteVu = it
+            paquetVu = paquet
+            instantVu = SystemClock.uptimeMillis()
+        }
         val v = f.verifierUrl(texte)
         if (v.bloque) bloquer(paquet, v)
+    }
+
+    // ---------------------------------------------------------------- apprentissage
+    // Site affiché en dernier dans un navigateur, pour savoir où des images ont été floutées.
+    private var hoteVu: String? = null
+    private var paquetVu = ""
+    private var instantVu = 0L
+    private val apprentissage = Apprentissage()
+
+    /** Plusieurs images pornographiques floutées sur un même site : le site entier est bloqué. */
+    private fun imagesFloutees(paquet: String, nombre: Int) {
+        val h = hoteVu ?: return
+        val maintenant = SystemClock.uptimeMillis()
+        if (paquet != paquetVu || paquet !in navigateurs || maintenant - instantVu > 60_000L) return
+        val appris = apprentissage.signaler(h, nombre, maintenant) ?: return
+        val f = filtre ?: return
+        f.apprendre(appris)
+        fond.execute {
+            val e = Etat(this)
+            e.sitesAppris = e.sitesAppris + appris
+        }
+        val v = f.verifierHote(h)
+        if (v.bloque) bloquer(paquet, v)
+    }
+
+    /** Oublie les sites appris (seulement hors verrou, depuis l'écran de PrP). */
+    fun oublierAppris() {
+        filtre?.oublierAppris()
     }
 
     /** Texte de la barre d'adresse, ou null si elle est introuvable ou en cours de frappe. */

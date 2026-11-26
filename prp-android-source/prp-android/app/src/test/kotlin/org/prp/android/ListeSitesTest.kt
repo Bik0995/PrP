@@ -35,12 +35,20 @@ class ListeSitesTest {
         val f = listOf("src/main/assets/sites.bin", "app/src/main/assets/sites.bin").map { File(it) }.firstOrNull { it.exists() }
             ?: return
         val l = f.inputStream().use { ListeSites.charger(it) }
-        assertTrue(l.taille > 500_000)
+        assertTrue(l.taille > 1_000_000)
         val filtre = Filtre(l)
         assertEquals(Raison.LISTE, filtre.verifierHote("chaturbate.com").raison)
         assertEquals(Raison.LISTE, filtre.verifierHote("fr.chaturbate.com").raison)
+        // sites sans mot-clé dans le nom, dans plusieurs langues : trouvés par la liste
+        for (h in listOf("qorno.com", "beboo.ru", "huyamba.name", "sosalkino.app", "arabxn.com", "x3arabi.com",
+            "shahvani.com", "tokyomotion.net", "jable.tv", "hitomi.la", "caribbeancom.com", "91cg1.com",
+            "xhamster.desi", "sexyhottiewomen.blogspot.ru"))
+            assertTrue(h, filtre.verifierHote(h).bloque)
+        // sites ordinaires : jamais bloqués (dont des plateformes mixtes et des sites mal classés ailleurs)
         for (h in listOf("reddit.com", "x.com", "vk.com", "ok.ru", "rutube.ru", "telegram.org", "github.com",
-            "kinopoisk.ru", "wikipedia.org", "hse.ru", "imgur.com", "instagram.com", "netflix.com", "moviebox.ng"))
+            "kinopoisk.ru", "wikipedia.org", "hse.ru", "imgur.com", "instagram.com", "netflix.com", "moviebox.ng",
+            "pixiv.net", "nicovideo.jp", "jeuxvideo.com", "unizwa.edu.om", "dinus.ac.id", "caixapopular.es",
+            "xiaohongshu.com", "www.blogspot.com", "tumblr.com"))
             assertFalse(h, filtre.verifierHote(h).bloque)
     }
 }

@@ -109,7 +109,7 @@
     <string name="theme_sombre">Dark</string>
     <string name="actualiser">Refresh</string>
     <string name="a_propos">About</string>
-    <string name="a_propos_texte">PrP %1$s\n\nDetection model: NSFWJS MobileNetV2 (MIT).\nIcons: Material Icons (Apache 2.0).\nSite list: The Block List Project (Unlicense).\nTrusted time: drand (League of Entropy).\nSetup without a PC: Shizuku API (MIT).</string>
+    <string name="a_propos_texte">PrP %1$s\n\nDetection model: NSFWJS MobileNetV2 (MIT).\nIcons: Material Icons (Apache 2.0).\nSite lists: The Block List Project (Unlicense), Université Toulouse Capitole UT1 (CC BY-SA 4.0).\nTrusted time: drand (League of Entropy).\nSetup without a PC: Shizuku API (MIT).</string>
     <string name="choix_titre">Set up PrP</string>
     <string name="choix_texte">Choose how PrP protects this phone. You can change it as long as the lock is not set.</string>
     <string name="mode_fort">Strong mode</string>
@@ -180,6 +180,9 @@
     <string name="motif">Reason: %1$s</string>
     <string name="tiens_bon">You chose this block yourself. Hold on.</string>
     <string name="raison_mot_cle">explicit site name</string>
+    <string name="raison_appris">site recognised by its images</string>
+    <string name="oublier_appris">Forget these sites</string>
+    <string name="oublier_appris_texte">Sites blocked because of their images will open again (their images stay blurred).</string>
     <string name="raison_liste">adult site list</string>
     <string name="raison_moteur">search engine that cannot be filtered</string>
     <string name="unite_minutes">minutes</string>
@@ -209,6 +212,10 @@
     <plurals name="p_comptes_auto">
         <item quantity="one">%d other account: PrP takes care of it.</item>
         <item quantity="other">%d other accounts: PrP takes care of them.</item>
+    </plurals>
+    <plurals name="p_sites_appris">
+        <item quantity="one">%d site blocked because of its images (several pornographic images blurred within a short time).</item>
+        <item quantity="other">%d sites blocked because of their images (several pornographic images blurred within a short time).</item>
     </plurals>
     <plurals name="p_mois">
         <item quantity="one">%d month</item>

@@ -110,7 +110,7 @@
     <string name="theme_sombre">Sombre</string>
     <string name="actualiser">Actualiser</string>
     <string name="a_propos">À propos</string>
-    <string name="a_propos_texte">PrP %1$s\n\nModèle de détection : NSFWJS MobileNetV2 (MIT).\nIcônes : Material Icons (Apache 2.0).\nListe de sites : The Block List Project (Unlicense).\nHeure fiable : drand (League of Entropy).\nConfiguration sans PC : Shizuku API (MIT).</string>
+    <string name="a_propos_texte">PrP %1$s\n\nModèle de détection : NSFWJS MobileNetV2 (MIT).\nIcônes : Material Icons (Apache 2.0).\nListes de sites : The Block List Project (Unlicense), Université Toulouse Capitole UT1 (CC BY-SA 4.0).\nHeure fiable : drand (League of Entropy).\nConfiguration sans PC : Shizuku API (MIT).</string>
     <string name="choix_titre">Installer PrP</string>
     <string name="choix_texte">Choisis comment PrP protège ce téléphone. Tu pourras changer tant que le verrou n\'est pas posé.</string>
     <string name="mode_fort">Mode Fort</string>
@@ -181,6 +181,9 @@
     <string name="motif">Motif : %1$s</string>
     <string name="tiens_bon">Tu as choisi ce blocage toi-même. Tiens bon.</string>
     <string name="raison_mot_cle">nom de site explicite</string>
+    <string name="raison_appris">site reconnu à ses images</string>
+    <string name="oublier_appris">Oublier ces sites</string>
+    <string name="oublier_appris_texte">Les sites bloqués d\'après leurs images seront de nouveau ouverts (leurs images resteront floutées).</string>
     <string name="raison_liste">liste de sites pour adultes</string>
     <string name="raison_moteur">moteur de recherche impossible à filtrer</string>
     <string name="unite_minutes">minutes</string>
@@ -215,6 +218,11 @@
         <item quantity="one">%d autre compte : PrP s\'en charge.</item>
         <item quantity="many">%d autres comptes : PrP s\'en charge.</item>
         <item quantity="other">%d autres comptes : PrP s\'en charge.</item>
+    </plurals>
+    <plurals name="p_sites_appris">
+        <item quantity="one">%d site bloqué d\'après ses images (plusieurs images pornographiques floutées en peu de temps).</item>
+        <item quantity="many">%d sites bloqués d\'après leurs images (plusieurs images pornographiques floutées en peu de temps).</item>
+        <item quantity="other">%d sites bloqués d\'après leurs images (plusieurs images pornographiques floutées en peu de temps).</item>
     </plurals>
     <plurals name="p_mois">
         <item quantity="one">%d mois</item>

@@ -546,6 +546,25 @@ class MainActivity : Activity() {
             v.note(c, getString(R.string.diag_derniere, texteAnalyse()))
             DiagDetection.erreur?.let { v.texte(c, getString(R.string.diag_erreur, it), 14f, v.pal.rouge) }
         }
+        val appris = e.sitesAppris.size
+        if (appris > 0) {
+            v.espace(c, 6)
+            v.note(c, resources.getQuantityString(R.plurals.p_sites_appris, appris, appris))
+            if (!e.verrouActif) {
+                v.bouton(c, getString(R.string.oublier_appris), R.drawable.ic_refresh, v.pal.texteDoux, Vues.Style.CONTOUR) {
+                    AlertDialog.Builder(this)
+                        .setTitle(R.string.oublier_appris)
+                        .setMessage(R.string.oublier_appris_texte)
+                        .setNegativeButton(R.string.annuler, null)
+                        .setPositiveButton(R.string.oublier_appris) { _, _ ->
+                            e.sitesAppris = emptySet()
+                            GardeService.instance?.oublierAppris()
+                            dessiner()
+                        }
+                        .show()
+                }
+            }
+        }
         v.bouton(c, getString(R.string.details), R.drawable.ic_info, v.pal.primaire, Vues.Style.CONTOUR) {
             fenetreDetails()
         }

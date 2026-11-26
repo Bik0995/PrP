@@ -44,7 +44,11 @@ object DiagDetection {
  * Rien n'est enregistré ni envoyé : chaque capture est analysée en mémoire puis jetée.
  * Nécessite Android 11 minimum (capture d'écran par accessibilité).
  */
-class Detection(private val service: AccessibilityService) {
+class Detection(
+    private val service: AccessibilityService,
+    /** Appelé (fil principal) quand des images sont floutées : application, nombre d'images. */
+    private val surFlou: (paquet: String, nombre: Int) -> Unit = { _, _ -> },
+) {
     private val principal = Handler(Looper.getMainLooper())
     private val fond = Executors.newSingleThreadExecutor()
     private val etat = Etat(service)
@@ -476,6 +480,7 @@ class Detection(private val service: AccessibilityService) {
                         if (actif) {
                             placer(confirmees, images, cap)
                             rafraichirVue()
+                            surFlou(paquetAvant, confirmees.size)
                         }
                     } finally {
                         cap.recycle()

@@ -70,6 +70,11 @@ class Etat(ctx: Context) {
         get() = (p.getString("paquets_retires", "") ?: "").split(',').filter { it.isNotBlank() }
         set(v) { p.edit().putString("paquets_retires", v.joinToString(",")).commit() }
 
+    /** Sites bloqués d'après leurs images (voir filtre/Apprentissage.kt). */
+    var sitesAppris: Set<String>
+        get() = p.getStringSet("sites_appris", emptySet())?.toSet() ?: emptySet()
+        set(v) { p.edit().putStringSet("sites_appris", HashSet(v)).commit() }
+
     var echecsReseau: Int
         get() = p.getInt("echecs_reseau", 0)
         set(v) { p.edit().putInt("echecs_reseau", v).commit() }
