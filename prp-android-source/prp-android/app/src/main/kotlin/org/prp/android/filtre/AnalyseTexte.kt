@@ -80,18 +80,99 @@ object AnalyseTexte {
     }
 
     /**
-     * Une RECHERCHE tapée dans une application (Facebook, Instagram, Telegram, YouTube…) est
-     * courte : un seul mot fort suffit (porno, xxx, hentai…). Les mots vulgaires seuls ne
-     * suffisent pas (paroles de chansons, jurons) ; deux mots moyens dont « sexe » ou « nu »,
-     * oui. « Éducation sexuelle » ou « plage nudiste » passent.
+     * Une RECHERCHE (application, barre d'adresse, moteur de recherche, même en navigation privée).
+     *
+     * - Recherche liée à un mineur et au sexe : toujours refusée.
+     * - Mot de contexte (addiction, arrêter, santé, loi, éducation, médecin…) : toujours acceptée.
+     *   Les sites, le texte des pages et les images restent filtrés derrière.
+     * - Mot sans ambiguïté (porno, pornhub, milf, blowjob, سكس, エロ動画…) : refusée.
+     * - Mot à double sens (anal, masturbation, orgie, xxx, uncensored, Deep Throat, juron…) :
+     *   refusée seulement avec un autre signe de recherche pornographique (vidéo, gratuit, HD…).
+     * - Deux mots moyens dont « sexe » ou « nu » : refusée.
      */
     fun rechercheAdulte(q: String): Boolean {
+        val t = " " + q.lowercase() + " "
         val r = evaluer(q)
+        val sexuel = r.fortes > 0 || "sexe" in r.familles || "nu" in r.familles
+        if (MINEURS_ALONE.any { contientMot(t, it) }) return true
+        if (sexuel && MINEURS.any { contientMot(t, it) }) return true
+        if (CONTEXTE.any { contientMot(t, it) }) return false
         val fortes = r.familles.filter { nom -> FORTES.any { it.nom == nom } }
-        if (fortes.any { it != "vulgaire" }) return true
-        if ("vulgaire" in fortes && r.moyennes >= 1) return true
+        val sures = fortes.filter { it !in DOUBLE_SENS }.filter { it != "hentai" || !hentaiAmbigu(t) }
+        if (sures.isNotEmpty()) return true
+        val signe = INTENTION.any { contientMot(t, it) } || r.moyennes >= 1 || fortes.size >= 2
+        if (fortes.isNotEmpty() && signe) return true
         return r.moyennes >= 2 && ("sexe" in r.familles || "nu" in r.familles)
     }
+
+    /** Moteurs de recherche et nom du paramètre qui porte la recherche dans leur adresse. */
+    private val MOTEURS = listOf(
+        "google." to listOf("q"), "bing.com" to listOf("q"), "yandex." to listOf("text"), "ya.ru" to listOf("text"),
+        "duckduckgo.com" to listOf("q"), "yahoo.com" to listOf("p", "q"), "ecosia.org" to listOf("q"),
+        "qwant.com" to listOf("q"), "baidu.com" to listOf("wd", "word"), "mail.ru" to listOf("q"),
+        "search.brave.com" to listOf("q"), "startpage.com" to listOf("query", "q"), "youtube.com" to listOf("search_query"),
+        "naver.com" to listOf("query"), "seznam.cz" to listOf("q"), "yahoo.co.jp" to listOf("p"),
+    )
+
+    /** La recherche contenue dans l'adresse d'une page de résultats, ou null. */
+    fun requeteDansUrl(url: String): String? {
+        var u = url.trim()
+        if (u.isEmpty() || u.any { it.isWhitespace() } || '?' !in u) return null
+        if ("://" !in u) u = "https://$u"
+        val hote = Filtre.extraireHote(u) ?: return null
+        val noms = MOTEURS.firstOrNull { (m, _) -> if (m.endsWith(".")) hote.contains(m) else hote == m || hote.endsWith(".$m") }
+            ?.second ?: return null
+        val params = u.substringAfter('?').substringBefore('#').split('&')
+        for (p in params) {
+            val k = p.substringBefore('=')
+            if (k in noms) return try {
+                java.net.URLDecoder.decode(p.substringAfter('=', ""), "UTF-8")
+            } catch (e: Exception) { p.substringAfter('=', "") }
+        }
+        return null
+    }
+
+    /** « 変態 » seul veut aussi dire « pervers » ou « métamorphose » en japonais. */
+    private fun hentaiAmbigu(t: String) =
+        FORTES.first { it.nom == "hentai" }.formes.none { it != "変態" && contientMot(t, it) }
+
+    /** Familles fortes qui ont aussi un sens ordinaire (médecine, histoire, cinéma, jurons). */
+    val DOUBLE_SENS = setOf("anal", "masturbation", "groupe", "gorge", "xxx", "non censuré", "vulgaire")
+
+    /** Signes qu'on cherche des vidéos ou des photos. */
+    val INTENTION = listOf(
+        "video", "vidéo", "videos", "vidéos", "vídeo", "видео", "фото", "photo", "pics", "gratuit", "free",
+        "gratis", "бесплатно", "hd", "онлайн", "online", "en ligne", "girls", "girl", "teen", "teens", "watch",
+        "porno", "動画", "视频", "影片", "فيديو", "مقاطع", "동영상", "movie", "movies", "film", "films", "клип",
+    )
+
+    /** Recherches d'aide, de soin, de savoir ou d'actualité : jamais bloquées. */
+    val CONTEXTE = listOf(
+        "addiction", "addict", "dépendance", "dependance", "arrêter", "arreter", "quit", "quitting", "stop",
+        "sevrage", "aide", "help", "effet", "effets", "effect", "effects", "loi", "lois", "law", "legal",
+        "légal", "santé", "sante", "health", "éducation", "education", "médecin", "medecin", "doctor",
+        "médical", "medical", "traitement", "treatment", "thérapie", "therapie", "therapy", "symptôme",
+        "symptome", "symptom", "maladie", "disease", "fissure", "fistule", "fistula", "hémorroïde",
+        "étude", "study", "research", "recherche scientifique", "histoire", "history", "protéger", "proteger",
+        "protect", "parental", "parler", "talk", "scandale", "scandal", "affaire", "cerveau", "brain",
+        "psycholog", "sexolog", "consentement", "consent",
+        "зависимост", "бросить", "бросать", "отказ", "помощь", "лечени", "врач", "болезн", "здоров",
+        "закон", "эффект", "влияни", "защит", "родител", "трещин", "свищ", "психолог", "сексолог",
+        "история", "скандал", "исследован", "мозг",
+        "adicción", "adiccion", "dejar", "ayuda", "salud", "tratamiento", "ley", "vício", "vicio",
+        "parar", "saúde", "ajuda", "sucht", "hilfe", "dipendenza",
+        "إدمان", "ادمان", "علاج", "ترك", "依存", "中毒", "戒", "중독",
+    )
+
+    /** Mots liés à un mineur : avec un mot sexuel, la recherche est toujours refusée. */
+    val MINEURS = listOf(
+        "child", "children", "kid", "kids", "enfant", "enfants", "mineur", "mineure", "underage", "minor",
+        "ребен", "ребён", "дет", "школьниц", "малолет", "несовершеннолет", "niño", "niña", "menor", "criança",
+        "bambin", "kind", "kinder", "طفل", "أطفال", "児童", "儿童", "幼女", "아동",
+    )
+
+    /** Mots qui désignent à eux seuls des abus sur mineurs : toujours refusés. */
+    val MINEURS_ALONE = listOf("pthc", "preteen", "lolicon", "shotacon", "jailbait", "cp porn")
 
     fun evaluer(texte: String): Resultat {
         val t = " " + texte.lowercase() + " "

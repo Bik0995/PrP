@@ -1,6 +1,8 @@
 package org.prp.android
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.prp.android.filtre.AnalyseTexte
@@ -40,14 +42,30 @@ class AnalyseTexteTest {
             "maduras. La corrida de toros. Un pájaro. On abaisse le prix. Coroas de ouro."))
     }
 
-    @Test fun recherchesDansLesApplications() {
+    @Test fun recherches() {
         val r = AnalyseTexte::rechercheAdulte
+        // refusées
         for (q in listOf("porn", "porno russe", "порно", "xxx video", "hentai", "milf", "سكس", "エロ動画",
-            "sex video", "free sex", "nude girls", "сиськи секс", "fuck girls nude", "pornhub", "sexo y desnudas"))
+            "sex video", "free sex", "nude girls", "сиськи секс", "fuck girls nude", "pornhub", "sexo y desnudas",
+            "anal video", "masturbation video", "orgy hd", "uncensored nude", "анальный секс", "変態 動画 エロ",
+            "child porn", "детское порно", "preteen", "porn kids help"))
             assertTrue(q, r(q))
+        // acceptées
         for (q in listOf("éducation sexuelle", "sex education", "plage nudiste", "fuck you song", "страхование",
-            "recette de crêpes", "Essex football", "canale 5", "la corrida", "bikini 2026", "gay pride paris"))
+            "recette de crêpes", "Essex football", "canale 5", "la corrida", "bikini 2026", "gay pride paris",
+            "анальная трещина", "fistola anale", "masturbation", "orgie romaine", "deep throat watergate",
+            "xxx", "super bowl xxx", "uncensored interview", "変態", "porn addiction help", "как бросить порно",
+            "effets du porno sur le cerveau", "loi pornographie", "comment protéger du porno", "sex video scandal",
+            "зависимость от порно лечение", "masturbation santé"))
             assertFalse(q, r(q))
+    }
+
+    @Test fun rechercheDansLAdresse() {
+        assertEquals("porno gratuit", AnalyseTexte.requeteDansUrl("https://www.google.com/search?q=porno+gratuit&hl=fr"))
+        assertEquals("порно", AnalyseTexte.requeteDansUrl("yandex.ru/search/?text=%D0%BF%D0%BE%D1%80%D0%BD%D0%BE"))
+        assertEquals("xxx", AnalyseTexte.requeteDansUrl("https://m.youtube.com/results?search_query=xxx"))
+        assertNull(AnalyseTexte.requeteDansUrl("https://example.com/?q=porn"))
+        assertNull(AnalyseTexte.requeteDansUrl("https://www.google.com/"))
     }
 
     @Test fun sitesDInformation() {

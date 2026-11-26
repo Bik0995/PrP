@@ -134,6 +134,7 @@ class GardeService : AccessibilityService() {
         ) detection?.surPaquet(paquet)
         if (paquet in APPLIS && paquet !in navigateurs) { surAppli(event, paquet); return }
         if (filtre == null || paquet == packageName || paquet !in navigateurs) return
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) { saisieNavigateur(event, paquet); return }
         // Lecture du texte de la page : au plus une fois par seconde et demie, après les changements.
         if (!lecturePrevue) {
             lecturePrevue = true
@@ -158,7 +159,32 @@ class GardeService : AccessibilityService() {
             instantVu = SystemClock.uptimeMillis()
         }
         val v = f.verifierUrl(texte)
-        if (v.bloque) bloquer(paquet, v)
+        if (v.bloque) { bloquer(paquet, v); return }
+        // page de résultats d'un moteur de recherche (y compris en navigation privée)
+        // certains navigateurs n'affichent que les mots cherchés à la place de l'adresse
+        val q = AnalyseTexte.requeteDansUrl(texte) ?: texte.takeIf { Filtre.extraireHote(it) == null }
+        if (q != null && AnalyseTexte.rechercheAdulte(q)) bloquer(paquet, Verdict(true, q, Raison.RECHERCHE))
+    }
+
+    /** Ce qu'on tape dans la barre d'adresse ou dans le champ de recherche d'une page. */
+    private fun saisieNavigateur(event: AccessibilityEvent, paquet: String) {
+        val n = event.source ?: return
+        val id = n.viewIdResourceName.orEmpty()
+        val barre = id.endsWith("url_bar") || IDS_BARRE[paquet]?.contains(id) == true
+        if (!barre && !estRecherche(n)) return
+        val q = (n.text ?: event.text.joinToString(" ")).toString()
+        if (Filtre.extraireHote(q) != null) return // une adresse : la garde des adresses s'en charge
+        if (!AnalyseTexte.rechercheAdulte(q)) return
+        effacer(n)
+        bloquer(paquet, Verdict(true, q, Raison.RECHERCHE))
+    }
+
+    private fun effacer(n: AccessibilityNodeInfo) {
+        try {
+            val b = Bundle()
+            b.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
+            n.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, b)
+        } catch (e: Exception) { }
     }
 
     // ---------------------------------------------------------------- texte de la page
@@ -221,11 +247,7 @@ class GardeService : AccessibilityService() {
             if (!estRecherche(n)) return
             val q = (n.text ?: event.text.joinToString(" ")).toString()
             if (!AnalyseTexte.rechercheAdulte(q)) return
-            try { // on efface la recherche
-                val b = Bundle()
-                b.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
-                n.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, b)
-            } catch (e: Exception) { }
+            effacer(n)
             bloquerAppli(paquet, Raison.RECHERCHE)
             return
         }
