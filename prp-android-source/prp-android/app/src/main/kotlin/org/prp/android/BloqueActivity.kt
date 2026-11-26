@@ -62,6 +62,7 @@ class BloqueActivity : Activity() {
             Raison.TEXTE -> getString(R.string.raison_texte)
             Raison.RECHERCHE -> getString(R.string.raison_recherche)
             Raison.CONTENU -> getString(R.string.raison_contenu)
+            Raison.GROUPE -> getString(R.string.raison_groupe)
             null -> ""
         }
         motifVue.text = if (libelle.isEmpty()) "" else getString(R.string.motif, libelle)

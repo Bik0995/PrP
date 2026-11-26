@@ -10,6 +10,7 @@ enum class Raison(val libelle: String) {
     TEXTE("site reconnu à son contenu"),
     RECHERCHE("recherche de contenu pour adultes"),
     CONTENU("contenu pour adultes dans une application"),
+    GROUPE("groupe ou conversation pour adultes"),
 }
 
 data class Verdict(val bloque: Boolean, val hote: String = "", val raison: Raison? = null)

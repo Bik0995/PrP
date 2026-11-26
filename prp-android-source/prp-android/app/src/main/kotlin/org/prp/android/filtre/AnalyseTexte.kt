@@ -90,7 +90,7 @@ object AnalyseTexte {
      *   refusée seulement avec un autre signe de recherche pornographique (vidéo, gratuit, HD…).
      * - Deux mots moyens dont « sexe » ou « nu » : refusée.
      */
-    fun rechercheAdulte(q: String): Boolean {
+    fun rechercheAdulte(q: String, sociale: Boolean = false): Boolean {
         val t = " " + q.lowercase() + " "
         val r = evaluer(q)
         val sexuel = r.fortes > 0 || "sexe" in r.familles || "nu" in r.familles
@@ -102,6 +102,9 @@ object AnalyseTexte {
         if (sures.isNotEmpty()) return true
         val signe = INTENTION.any { contientMot(t, it) } || r.moyennes >= 1 || fortes.size >= 2
         if (fortes.isNotEmpty() && signe) return true
+        // dans une application sociale, chercher « sexe » ou « sexy » seul ne sert pas à un cours :
+        // les résultats sont des profils et des groupes. Un seul mot moyen suffit.
+        if (sociale && r.familles.any { it in MOYENNES_SOCIALES }) return true
         return r.moyennes >= 2 && ("sexe" in r.familles || "nu" in r.familles)
     }
 
@@ -130,6 +133,16 @@ object AnalyseTexte {
             } catch (e: Exception) { p.substringAfter('=', "") }
         }
         return null
+    }
+
+    /** Mots moyens refusés seuls dans les applications sociales (« amateur » reste permis). */
+    val MOYENNES_SOCIALES = setOf("sexe", "nu", "seins", "hardcore", "érotique", "excitée", "fétiche", "ados",
+        "webcam", "escort", "lesbiennes", "gay", "adulte")
+
+    /** Recherche qui touche au sujet sans être refusée : l'écran suivant est surveillé plus strictement. */
+    fun rechercheSensible(q: String): Boolean {
+        val r = evaluer(q)
+        return r.fortes > 0 || r.moyennes > 0
     }
 
     /** « 変態 » seul veut aussi dire « pervers » ou « métamorphose » en japonais. */

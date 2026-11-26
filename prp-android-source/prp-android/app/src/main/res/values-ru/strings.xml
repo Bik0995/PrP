@@ -186,9 +186,10 @@
     <string name="raison_appris">сайт распознан по изображениям</string>
     <string name="raison_texte">сайт распознан по содержимому (тексту страницы)</string>
     <string name="raison_recherche">поиск контента для взрослых</string>
+    <string name="raison_groupe">группа или переписка для взрослых</string>
     <string name="raison_contenu">контент для взрослых в приложении</string>
-    <string name="oublier_appris">Забыть эти сайты</string>
-    <string name="oublier_appris_texte">Сайты, заблокированные по изображениям, снова откроются (их изображения останутся размытыми).</string>
+    <string name="oublier_appris">Забыть эти сайты и группы</string>
+    <string name="oublier_appris_texte">Сайты, группы и чаты, заблокированные по изображениям, снова откроются (их изображения останутся размытыми).</string>
     <string name="raison_liste">список сайтов для взрослых</string>
     <string name="raison_moteur">поисковик, который нельзя отфильтровать</string>
     <string name="unite_minutes">минуты</string>
@@ -234,6 +235,12 @@
         <item quantity="few">%d сайта заблокированы по изображениям (изображения или текст страницы).</item>
         <item quantity="many">%d сайтов заблокированы по изображениям (изображения или текст страницы).</item>
         <item quantity="other">%d сайта заблокированы по изображениям (изображения или текст страницы).</item>
+    </plurals>
+    <plurals name="p_groupes_appris">
+        <item quantity="one">%d группа или чат заблокированы по изображениям.</item>
+        <item quantity="few">%d группы или чата заблокированы по изображениям.</item>
+        <item quantity="many">%d групп или чатов заблокированы по изображениям.</item>
+        <item quantity="other">%d группы или чата заблокированы по изображениям.</item>
     </plurals>
     <plurals name="p_mois">
         <item quantity="one">%d месяц</item>

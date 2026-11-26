@@ -81,6 +81,7 @@ class GardeService : AccessibilityService() {
     override fun onServiceConnected() {
         fond.execute {
             navigateurs = listerNavigateurs()
+            groupes = Etat(this).groupesAppris
             filtre = try {
                 Filtre(assets.open("sites.bin").use { ListeSites.charger(it) }, Etat(this).sitesAppris)
             } catch (e: Exception) {
@@ -164,6 +165,7 @@ class GardeService : AccessibilityService() {
         // certains navigateurs n'affichent que les mots cherchés à la place de l'adresse
         val q = AnalyseTexte.requeteDansUrl(texte) ?: texte.takeIf { Filtre.extraireHote(it) == null }
         if (q != null && AnalyseTexte.rechercheAdulte(q)) bloquer(paquet, Verdict(true, q, Raison.RECHERCHE))
+        else if (q != null && AnalyseTexte.rechercheSensible(q)) detection?.vigilance(paquet)
     }
 
     /** Ce qu'on tape dans la barre d'adresse ou dans le champ de recherche d'une page. */
@@ -174,7 +176,10 @@ class GardeService : AccessibilityService() {
         if (!barre && !estRecherche(n)) return
         val q = (n.text ?: event.text.joinToString(" ")).toString()
         if (Filtre.extraireHote(q) != null) return // une adresse : la garde des adresses s'en charge
-        if (!AnalyseTexte.rechercheAdulte(q)) return
+        if (!AnalyseTexte.rechercheAdulte(q)) {
+            if (AnalyseTexte.rechercheSensible(q)) detection?.vigilance(paquet)
+            return
+        }
         effacer(n)
         bloquer(paquet, Verdict(true, q, Raison.RECHERCHE))
     }
@@ -246,7 +251,10 @@ class GardeService : AccessibilityService() {
             val n = event.source ?: return
             if (!estRecherche(n)) return
             val q = (n.text ?: event.text.joinToString(" ")).toString()
-            if (!AnalyseTexte.rechercheAdulte(q)) return
+            if (!AnalyseTexte.rechercheAdulte(q, sociale = true)) {
+                if (AnalyseTexte.rechercheSensible(q)) detection?.vigilance(paquet)
+                return
+            }
             effacer(n)
             bloquerAppli(paquet, Raison.RECHERCHE)
             return
@@ -274,6 +282,7 @@ class GardeService : AccessibilityService() {
     private fun lireAppli(paquet: String) {
         val racine = try { rootInActiveWindow } catch (e: Exception) { null } ?: return
         if (racine.packageName?.toString() != paquet) return
+        if (paquet in MESSAGERIES && examinerConversation(racine, paquet)) return
         val texte = lireNoeuds(racine)
         if (texte == derniereLectureAppli) return
         derniereLectureAppli = texte
@@ -293,6 +302,80 @@ class GardeService : AccessibilityService() {
             for (i in n.childCount - 1 downTo 0) n.getChild(i)?.let { pile.add(it) }
         }
         return sb.toString()
+    }
+
+    // ---------------------------------------------------------------- groupes et conversations
+    // Nom de la conversation ouverte dans une messagerie. Un groupe dont le nom est pornographique
+    // est quitté dès son ouverture ; un groupe où plusieurs images ont été floutées est retenu.
+    @Volatile private var groupes: Set<String> = emptySet()
+    @Volatile private var titreVu: String? = null
+    @Volatile private var paquetTitre = ""
+    @Volatile private var instantTitre = 0L
+
+    /** Vrai si la conversation a été quittée. */
+    private fun examinerConversation(racine: AccessibilityNodeInfo, paquet: String): Boolean {
+        val titre = titreConversation(racine, paquet)
+        titreVu = titre
+        paquetTitre = paquet
+        instantTitre = SystemClock.uptimeMillis()
+        if (titre == null) return false
+        if (cleGroupe(paquet, titre) in groupes || AnalyseTexte.rechercheAdulte(titre, sociale = true)) {
+            principal.post { bloquerAppli(paquet, Raison.GROUPE) }
+            return true
+        }
+        return false
+    }
+
+    private fun cleGroupe(paquet: String, titre: String) = "$paquet|${titre.lowercase()}"
+
+    /** Titre en haut de l'écran (nom du contact, du groupe ou de la chaîne), ou null. */
+    private fun titreConversation(racine: AccessibilityNodeInfo, paquet: String): String? {
+        var t: String? = null
+        for (id in IDS_TITRE[paquet].orEmpty()) {
+            t = racine.findAccessibilityNodeInfosByViewId(id).firstOrNull()?.text?.toString()?.trim()
+            if (!t.isNullOrEmpty()) break
+        }
+        if (t.isNullOrEmpty()) {
+            val m = resources.displayMetrics
+            val r = android.graphics.Rect()
+            val file = ArrayDeque<AccessibilityNodeInfo>()
+            file.add(racine)
+            var vus = 0
+            while (file.isNotEmpty() && vus < 300 && t.isNullOrEmpty()) {
+                val n = file.removeFirst()
+                vus++
+                val x = n.text?.toString()?.trim()
+                if (!x.isNullOrEmpty() && !n.isEditable) {
+                    n.getBoundsInScreen(r)
+                    if (r.top > m.heightPixels * 0.02f && r.top < m.heightPixels * 0.12f && r.width() > m.widthPixels * 0.2f)
+                        t = x
+                }
+                for (i in 0 until n.childCount) n.getChild(i)?.let { file.add(it) }
+            }
+        }
+        val titre = t ?: return null
+        if (titre.length !in 2..80) return null
+        val bas = titre.lowercase()
+        if (bas in TITRES_GENERIQUES) return null
+        val nomAppli = try {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(paquet, 0)).toString().lowercase()
+        } catch (e: Exception) { "" }
+        return if (bas == nomAppli) null else titre
+    }
+
+    /** Images floutées dans une conversation : au bout de plusieurs, elle est retenue et quittée. */
+    private fun groupeFloute(paquet: String, nombre: Int) {
+        val t = titreVu ?: return
+        val maintenant = SystemClock.uptimeMillis()
+        if (paquet != paquetTitre || maintenant - instantTitre > 60_000L) return
+        val cle = cleGroupe(paquet, t)
+        if (!apprentissage.signalerCle(cle, nombre, maintenant)) return
+        groupes = groupes + cle
+        fond.execute {
+            val e = Etat(this)
+            e.groupesAppris = e.groupesAppris + cle
+        }
+        bloquerAppli(paquet, Raison.GROUPE)
     }
 
     /** Revient à l'écran précédent de l'application et affiche « Contenu bloqué ». */
@@ -326,6 +409,7 @@ class GardeService : AccessibilityService() {
 
     /** Plusieurs images pornographiques floutées sur un même site : le site entier est bloqué. */
     private fun imagesFloutees(paquet: String, nombre: Int) {
+        if (paquet in MESSAGERIES) { groupeFloute(paquet, nombre); return }
         val h = hoteVu ?: return
         val maintenant = SystemClock.uptimeMillis()
         if (paquet != paquetVu || paquet !in navigateurs || maintenant - instantVu > 60_000L) return
@@ -343,6 +427,7 @@ class GardeService : AccessibilityService() {
     /** Oublie les sites appris (seulement hors verrou, depuis l'écran de PrP). */
     fun oublierAppris() {
         filtre?.oublierAppris()
+        groupes = emptySet()
     }
 
     /** Texte de la barre d'adresse, ou null si elle est introuvable ou en cours de frappe. */
@@ -489,6 +574,33 @@ class GardeService : AccessibilityService() {
             "com.bsky.app", "ru.rutube.app", "ru.dzen.app", "com.whatsapp", "com.imo.android.imoim",
             "jp.naver.line.android", "com.kakao.talk", "com.tencent.mm", "com.sina.weibo",
             "tv.danmaku.bili", "com.xingin.xhs", "com.ss.android.ugc.aweme", "com.twitch.android.app",
+            "com.whatsapp.w4b", "org.thoughtcrime.securesms", "com.viber.voip", "org.telegram.messenger.beta",
+        )
+
+        /** Messageries et applications à groupes ou chaînes. */
+        val MESSAGERIES = setOf(
+            "com.whatsapp", "com.whatsapp.w4b", "org.telegram.messenger", "org.telegram.messenger.web",
+            "org.telegram.messenger.beta", "org.telegram.plus", "org.thunderdog.challegram", "com.facebook.orca",
+            "com.vk.im", "com.discord", "org.thoughtcrime.securesms", "com.viber.voip", "com.imo.android.imoim",
+            "jp.naver.line.android", "com.kakao.talk", "com.tencent.mm",
+        )
+
+        /** Identifiant du titre de la conversation, quand on le connaît. */
+        val IDS_TITRE: Map<String, List<String>> = mapOf(
+            "com.whatsapp" to listOf("com.whatsapp:id/conversation_contact_name"),
+            "com.whatsapp.w4b" to listOf("com.whatsapp.w4b:id/conversation_contact_name"),
+            "com.viber.voip" to listOf("com.viber.voip:id/toolbar_title"),
+        )
+
+        /** Titres des écrans généraux (liste des discussions, appels, réglages…) : jamais retenus. */
+        val TITRES_GENERIQUES = setOf(
+            "chats", "discussions", "чаты", "сообщения", "messages", "calls", "appels", "звонки", "contacts",
+            "контакты", "settings", "paramètres", "настройки", "status", "statut", "статус", "communities",
+            "communautés", "сообщества", "updates", "actus", "actualités", "обновления", "archived", "archivées",
+            "архив", "telegram", "whatsapp", "messenger", "discord", "signal", "viber", "search", "rechercher",
+            "поиск", "connecting...", "connecting…", "updating...", "updating…", "waiting for network...",
+            "соединение...", "соединение…", "обновление...", "обновление…", "ожидание сети...", "connexion...",
+            "connexion…", "mise à jour...", "new group", "nouveau groupe", "новая группа", "stories", "chaînes", "channels", "каналы",
         )
 
         /** Indication d'un champ de recherche, dans les langues courantes. */

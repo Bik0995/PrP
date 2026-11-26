@@ -186,9 +186,10 @@
     <string name="raison_appris">site recognised by its images</string>
     <string name="raison_texte">site recognised by its content (page text)</string>
     <string name="raison_recherche">search for adult content</string>
+    <string name="raison_groupe">adult group or conversation</string>
     <string name="raison_contenu">adult content in the app</string>
-    <string name="oublier_appris">Forget these sites</string>
-    <string name="oublier_appris_texte">Sites blocked because of their images will open again (their images stay blurred).</string>
+    <string name="oublier_appris">Forget these sites and groups</string>
+    <string name="oublier_appris_texte">Sites, groups and chats blocked because of their images will open again (their images stay blurred).</string>
     <string name="raison_liste">adult site list</string>
     <string name="raison_moteur">search engine that cannot be filtered</string>
     <string name="unite_minutes">minutes</string>
@@ -222,6 +223,10 @@
     <plurals name="p_sites_appris">
         <item quantity="one">%d site blocked because of its images (images or page text).</item>
         <item quantity="other">%d sites blocked because of their images (images or page text).</item>
+    </plurals>
+    <plurals name="p_groupes_appris">
+        <item quantity="one">%d group or chat blocked because of its images.</item>
+        <item quantity="other">%d groups or chats blocked because of their images.</item>
     </plurals>
     <plurals name="p_mois">
         <item quantity="one">%d month</item>

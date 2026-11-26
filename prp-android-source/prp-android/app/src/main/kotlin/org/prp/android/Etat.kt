@@ -75,6 +75,11 @@ class Etat(ctx: Context) {
         get() = p.getStringSet("sites_appris", emptySet())?.toSet() ?: emptySet()
         set(v) { p.edit().putStringSet("sites_appris", HashSet(v)).commit() }
 
+    /** Groupes et conversations bloqués (« paquet|nom »), d'après leurs images. */
+    var groupesAppris: Set<String>
+        get() = p.getStringSet("groupes_appris", emptySet())?.toSet() ?: emptySet()
+        set(v) { p.edit().putStringSet("groupes_appris", HashSet(v)).commit() }
+
     var echecsReseau: Int
         get() = p.getInt("echecs_reseau", 0)
         set(v) { p.edit().putInt("echecs_reseau", v).commit() }

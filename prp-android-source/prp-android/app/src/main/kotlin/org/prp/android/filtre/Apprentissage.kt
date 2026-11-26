@@ -28,6 +28,18 @@ class Apprentissage(
         return h
     }
 
+    /** Même compte pour une conversation ou un groupe (clé libre, sans nom de site). */
+    @Synchronized
+    fun signalerCle(cle: String, nombre: Int, t: Long): Boolean {
+        if (nombre <= 0) return false
+        val f = vues.getOrPut(cle) { ArrayDeque() }
+        repeat(nombre.coerceAtMost(seuil)) { f.addLast(t) }
+        while (f.isNotEmpty() && t - f.first() > fenetreMs) f.removeFirst()
+        if (f.size < seuil) return false
+        vues.remove(cle)
+        return true
+    }
+
     companion object {
         fun nettoyer(hote: String): String? {
             var h = hote.trim().trimEnd('.').lowercase()

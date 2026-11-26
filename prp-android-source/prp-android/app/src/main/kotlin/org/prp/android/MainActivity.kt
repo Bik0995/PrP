@@ -547,9 +547,12 @@ class MainActivity : Activity() {
             DiagDetection.erreur?.let { v.texte(c, getString(R.string.diag_erreur, it), 14f, v.pal.rouge) }
         }
         val appris = e.sitesAppris.size
-        if (appris > 0) {
+        val groupesAppris = e.groupesAppris.size
+        if (appris > 0 || groupesAppris > 0) {
             v.espace(c, 6)
-            v.note(c, resources.getQuantityString(R.plurals.p_sites_appris, appris, appris))
+            if (appris > 0) v.note(c, resources.getQuantityString(R.plurals.p_sites_appris, appris, appris))
+            if (groupesAppris > 0)
+                v.note(c, resources.getQuantityString(R.plurals.p_groupes_appris, groupesAppris, groupesAppris))
             if (!e.verrouActif) {
                 v.bouton(c, getString(R.string.oublier_appris), R.drawable.ic_refresh, v.pal.texteDoux, Vues.Style.CONTOUR) {
                     AlertDialog.Builder(this)
@@ -558,6 +561,7 @@ class MainActivity : Activity() {
                         .setNegativeButton(R.string.annuler, null)
                         .setPositiveButton(R.string.oublier_appris) { _, _ ->
                             e.sitesAppris = emptySet()
+                            e.groupesAppris = emptySet()
                             GardeService.instance?.oublierAppris()
                             dessiner()
                         }

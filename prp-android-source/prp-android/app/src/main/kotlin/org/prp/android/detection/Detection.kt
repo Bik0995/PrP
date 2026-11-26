@@ -102,6 +102,15 @@ class Detection(
     private var derniereMaj = 0L
     private var paquetAvant = ""
 
+    // Vigilance : après une recherche sensible, l'écran de résultats est jugé comme en mode enfant.
+    @Volatile private var vigilancePaquet = ""
+    @Volatile private var vigilanceJusqua = 0L
+
+    fun vigilance(paquet: String) {
+        vigilancePaquet = paquet
+        vigilanceJusqua = SystemClock.uptimeMillis() + DUREE_VIGILANCE_MS
+    }
+
     private val boucle = object : Runnable {
         override fun run() {
             if (!actif) return
@@ -157,6 +166,7 @@ class Detection(
     fun surPaquet(paquet: String) {
         if (paquet == paquetAvant || paquet in IGNORES || paquet in claviers()) return
         paquetAvant = paquet
+        if (paquet != vigilancePaquet) vigilanceJusqua = 0L
         cibles.clear()
         synchronized(surs) { surs.clear() }
         synchronized(soupcons) { soupcons.clear() }
@@ -501,8 +511,9 @@ class Detection(
                 return
             }
 
-            val sens = etat.sensibilite
-            val enfant = etat.modeEnfant
+            val vigilant = paquetAvant == vigilancePaquet && SystemClock.uptimeMillis() < vigilanceJusqua
+            val sens = if (vigilant) 0 else etat.sensibilite
+            val enfant = etat.modeEnfant || vigilant
             val lc = ecranL.toFloat()
             val hc = ecranH.toFloat()
             val images = noeudsImages()
@@ -625,6 +636,7 @@ class Detection(
         const val MAX_CIBLES = 40
         const val MAX_CLASSIF = 6
         /** Durée d'un flou d'écran entier avant nouvelle vérification. */
+        const val DUREE_VIGILANCE_MS = 120_000L
         const val DUREE_ECRAN_MS = 4_000L
         const val MAX_SURS = 300
         const val DUREE_SUR_MS = 10_000L

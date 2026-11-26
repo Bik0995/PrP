@@ -60,6 +60,18 @@ class AnalyseTexteTest {
             assertFalse(q, r(q))
     }
 
+    @Test fun recherchesDansLesApplicationsSociales() {
+        val r = { q: String -> AnalyseTexte.rechercheAdulte(q, sociale = true) }
+        for (q in listOf("sexe", "sexy", "секс", "nude", "hot sexy girls", "18+ girls", "escort paris"))
+            assertTrue(q, r(q))
+        for (q in listOf("sex education", "éducation sexuelle", "amateur football", "gay pride paris",
+            "recette", "Essex", "groupe famille"))
+            assertFalse(q, r(q))
+        assertFalse(AnalyseTexte.rechercheAdulte("sexe")) // navigateur : règle habituelle
+        assertTrue(AnalyseTexte.rechercheSensible("sexe"))
+        assertFalse(AnalyseTexte.rechercheSensible("recette de crêpes"))
+    }
+
     @Test fun rechercheDansLAdresse() {
         assertEquals("porno gratuit", AnalyseTexte.requeteDansUrl("https://www.google.com/search?q=porno+gratuit&hl=fr"))
         assertEquals("порно", AnalyseTexte.requeteDansUrl("yandex.ru/search/?text=%D0%BF%D0%BE%D1%80%D0%BD%D0%BE"))
