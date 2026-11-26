@@ -1,0 +1,22 @@
+{
+ "taille": [
+  384,
+  384
+ ],
+ "moyenne": [
+  0.5,
+  0.5,
+  0.5
+ ],
+ "ecart_type": [
+  0.5,
+  0.5,
+  0.5
+ ],
+ "interpolation": "bicubic",
+ "classes": [
+  "NSFW",
+  "SFW"
+ ],
+ "ecart_onnx": 1.1920928955078125e-06
+}
