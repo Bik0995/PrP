@@ -111,8 +111,8 @@ class Filtre(private val liste: ListeSites, appris: Collection<String> = emptyLi
             "disputas", "computas", "imputas", "reputas", // espagnol
             "trahe", "трахе",                            // trachée (latin, russe)
             "сексолог",                                   // sexologue
-            "jeuxvideo",                                  # jeuxvideo.com
-            "emilf", "amilf",                             # Emil Frey, tamilfont…
+            "jeuxvideo",                                  // jeuxvideo.com
+            "emilf", "amilf",                             // Emil Frey, tamilfont…
             "zerogame", "herogame",
             "bdsmart", "bdsmotos", "bdsmeister",
             "toppaid", "emekli", "atputa", "musikis", "mebly", "salopez", "sekspres", "sekstra",
