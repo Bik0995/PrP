@@ -1,0 +1,26 @@
+name: Convertir le modèle Marqo
+on:
+  push:
+    paths:
+      - prp-android-source/prp-android/outils/convertir_marqo.py
+      - .github/workflows/modele-marqo.yml
+  workflow_dispatch:
+jobs:
+  onnx:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prp-android-source/prp-android/outils
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu && pip install --quiet timm huggingface_hub safetensors onnx onnxruntime numpy
+      - run: python convertir_marqo.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: modele-marqo
+          path: |
+            prp-android-source/prp-android/outils/marqo_nsfw_384.onnx
+            prp-android-source/prp-android/outils/marqo_nsfw_384.json
