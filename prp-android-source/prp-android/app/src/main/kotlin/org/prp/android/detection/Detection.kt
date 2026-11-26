@@ -32,6 +32,17 @@ object DiagDetection {
     @Volatile var ecransProteges = 0
     /** Nombre d'images actuellement floutées. */
     @Volatile var floutees = 0
+
+    /** Journal des dernières analyses (heure, application, ce qui a été jugé, scores, décision). */
+    private val journal = ArrayDeque<String>()
+    private val heure = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.ROOT)
+
+    fun noter(texte: String) = synchronized(journal) {
+        journal.addFirst(heure.format(java.util.Date()) + " " + texte)
+        while (journal.size > 40) journal.removeLast()
+    }
+
+    fun lireJournal(): String = synchronized(journal) { journal.joinToString("\n") }
 }
 
 /**
@@ -478,6 +489,7 @@ class Detection(
             if (Pretraitement.luminanceMoyenne(pixels, sl, sh) < 3f) {      // lecteur protégé ou écran éteint
                 DiagDetection.ecransProteges++
                 DiagDetection.dernier = Analyse.NOIR
+                DiagDetection.noter("$paquetAvant : écran noir ou protégé, non analysé")
                 return
             }
             val signature = Pretraitement.signature(pixels, sl, sh)
@@ -522,6 +534,7 @@ class Detection(
             }
 
             val debut = System.nanoTime()
+            val notes = ArrayList<String>()
             val confirmees = ArrayList<Confirmee>()
             val details = ArrayList<String>()
             var relancer = false
@@ -531,12 +544,17 @@ class Detection(
                 val p = m.classer(px)
                 val tuile = false
                 // deuxième avis, d'un autre modèle : les deux doivent être d'accord
-                var nsfw = 0f
-                val confirme = Classement.suspect(p, sens, enfant) &&
+                var nsfw = -1f
+                val suspecte = Classement.suspect(p, sens, enfant)
+                val confirme = suspecte &&
                     (pixelsRegion(cap, z, c = a.cote)?.let {
                         nsfw = probabilitePremiere(a.classer(it))
                         Classement.aFlouter(p, nsfw, sens, enfant, tuile)
                     } ?: false)
+                notes += (if (i >= 0) "image ${z.l.toInt()}x${z.ht.toInt()}" else "écran entier") + " " +
+                    Classement.NOMS.indices.joinToString(" ") { Classement.NOMS[it].take(4) + " " + (p[it] * 100).toInt() } +
+                    (if (nsfw >= 0f) " · NSFW ${(nsfw * 100).toInt()}" else "") +
+                    " → " + (if (confirme) "OUI" else if (suspecte) "non (2e modèle)" else "non")
                 if (confirme) {
                     // confirmation dans le temps : il faut deux jugements de suite (≤ 5 s)
                     val cleSoupcon = if (i >= 0) empreinte(images[i].first) + "|" + z.l.toInt() + "x" + z.ht.toInt()
@@ -568,6 +586,12 @@ class Detection(
             // la prochaine analyse a lieu même si l'écran n'a pas changé : soupçon à confirmer,
             // ou images pas encore vues (plus de MAX_CLASSIF sur l'écran)
             aContinuer = relancer || resteImages
+            DiagDetection.noter(
+                "$paquetAvant : ${images.size} images déclarées, ${candidats.size} assez grandes" +
+                    (if (sens == 0) ", stricte" else if (sens == 2) ", souple" else ", normale") +
+                    (if (enfant) ", enfant" else "") +
+                    (if (notes.isEmpty()) " · rien à analyser" else "\n   " + notes.joinToString("\n   ")),
+            )
             DiagDetection.analyses++
             DiagDetection.dernierMs = (System.nanoTime() - debut) / 1_000_000L
             DiagDetection.dernierDetail = details.joinToString()

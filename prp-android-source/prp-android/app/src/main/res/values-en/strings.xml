@@ -48,6 +48,9 @@
     <string name="diag_derniere">Last analysis: %1$s</string>
     <string name="diag_ms">Analysis time: %1$d ms</string>
     <string name="diag_nb">Analyses since start: %1$d</string>
+    <string name="diag_journal">Log (most recent first):</string>
+    <string name="copier">Copy</string>
+    <string name="copie_faite">Copied: paste it in your message.</string>
     <string name="an_aucune">none yet</string>
     <string name="an_refusee">screenshot refused (code %1$s)</string>
     <string name="an_noir">black or protected screen: not analysed</string>

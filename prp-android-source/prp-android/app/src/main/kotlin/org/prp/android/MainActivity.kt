@@ -702,7 +702,22 @@ class MainActivity : Activity() {
         lignes += getString(R.string.couche_modele) + " : " + (if (DiagDetection.modeleCharge) "✔" else "✘")
         lignes += getString(R.string.diag_floutees, DiagDetection.floutees)
         DiagDetection.erreur?.let { lignes += getString(R.string.diag_erreur, it) }
-        fenetre(getString(R.string.details_titre), lignes.joinToString("\n\n"), R.drawable.ic_info)
+        val journal = DiagDetection.lireJournal()
+        if (journal.isEmpty()) {
+            fenetre(getString(R.string.details_titre), lignes.joinToString("\n\n"), R.drawable.ic_info)
+            return
+        }
+        val texte = lignes.joinToString("\n\n") + "\n\n" + getString(R.string.diag_journal) + "\n" + journal
+        AlertDialog.Builder(this)
+            .setTitle(R.string.details_titre)
+            .setMessage(texte)
+            .setPositiveButton(android.R.string.ok, null)
+            .setNeutralButton(R.string.copier) { _, _ ->
+                val cb = getSystemService(android.content.ClipboardManager::class.java)
+                cb.setPrimaryClip(android.content.ClipData.newPlainText("PrP", "PrP " + packageManager.getPackageInfo(packageName, 0).versionName + "\n" + texte))
+                dire(getString(R.string.copie_faite))
+            }
+            .show()
     }
 
     private fun fenetreDuree(valeur: Long, choix: (Long) -> Unit) {

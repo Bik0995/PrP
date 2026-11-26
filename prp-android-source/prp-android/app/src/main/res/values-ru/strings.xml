@@ -48,6 +48,9 @@
     <string name="diag_derniere">Последний анализ: %1$s</string>
     <string name="diag_ms">Время анализа: %1$d мс</string>
     <string name="diag_nb">Анализов с запуска: %1$d</string>
+    <string name="diag_journal">Журнал (сначала новое):</string>
+    <string name="copier">Копировать</string>
+    <string name="copie_faite">Скопировано: вставьте в сообщение.</string>
     <string name="an_aucune">пока нет</string>
     <string name="an_refusee">снимок экрана отклонён (код %1$s)</string>
     <string name="an_noir">чёрный или защищённый экран: не анализируется</string>
