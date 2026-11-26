@@ -2,7 +2,7 @@
 <!-- Généré par gen/chaines.py -->
 <resources>
     <string name="garde_nom">PrP – Защита</string>
-    <string name="garde_description">Читает адрес в браузерах, чтобы блокировать сайты для взрослых, и закрывает откровенные изображения на экране. Ничего не сохраняется и не отправляется: всё происходит на телефоне.</string>
+    <string name="garde_description">Читает адрес в браузерах, чтобы блокировать сайты для взрослых, блокирует поиск такого контента в приложениях и закрывает откровенные изображения на экране. Ничего не сохраняется и не отправляется: всё происходит на телефоне.</string>
     <string name="sous_titre">Блокировка контента для взрослых с замком по времени</string>
     <string name="essai_titre">Пробная версия</string>
     <string name="essai_texte">Отладка по USB остаётся включённой: компьютер может удалить PrP. Не используйте её для настоящего замка.</string>
@@ -185,6 +185,8 @@
     <string name="raison_mot_cle">откровенное название сайта</string>
     <string name="raison_appris">сайт распознан по изображениям</string>
     <string name="raison_texte">сайт распознан по содержимому (тексту страницы)</string>
+    <string name="raison_recherche">поиск контента для взрослых</string>
+    <string name="raison_contenu">контент для взрослых в приложении</string>
     <string name="oublier_appris">Забыть эти сайты</string>
     <string name="oublier_appris_texte">Сайты, заблокированные по изображениям, снова откроются (их изображения останутся размытыми).</string>
     <string name="raison_liste">список сайтов для взрослых</string>

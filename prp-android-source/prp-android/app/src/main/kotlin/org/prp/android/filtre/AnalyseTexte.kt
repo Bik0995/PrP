@@ -79,6 +79,20 @@ object AnalyseTexte {
         val adulte: Boolean get() = fortes >= 5 || (fortes >= 4 && moyennes >= 4)
     }
 
+    /**
+     * Une RECHERCHE tapée dans une application (Facebook, Instagram, Telegram, YouTube…) est
+     * courte : un seul mot fort suffit (porno, xxx, hentai…). Les mots vulgaires seuls ne
+     * suffisent pas (paroles de chansons, jurons) ; deux mots moyens dont « sexe » ou « nu »,
+     * oui. « Éducation sexuelle » ou « plage nudiste » passent.
+     */
+    fun rechercheAdulte(q: String): Boolean {
+        val r = evaluer(q)
+        val fortes = r.familles.filter { nom -> FORTES.any { it.nom == nom } }
+        if (fortes.any { it != "vulgaire" }) return true
+        if ("vulgaire" in fortes && r.moyennes >= 1) return true
+        return r.moyennes >= 2 && ("sexe" in r.familles || "nu" in r.familles)
+    }
+
     fun evaluer(texte: String): Resultat {
         val t = " " + texte.lowercase() + " "
         val trouvees = ArrayList<String>()

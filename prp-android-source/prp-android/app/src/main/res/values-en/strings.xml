@@ -2,7 +2,7 @@
 <!-- Généré par gen/chaines.py -->
 <resources>
     <string name="garde_nom">PrP – Guard</string>
-    <string name="garde_description">Reads the address shown by browsers to block adult sites and masks explicit images on screen. Nothing is stored or sent: everything happens on the phone.</string>
+    <string name="garde_description">Reads the address shown by browsers to block adult sites, blocks adult searches in apps and masks explicit images on screen. Nothing is stored or sent: everything happens on the phone.</string>
     <string name="sous_titre">Adult content blocker, locked in time</string>
     <string name="essai_titre">Trial version</string>
     <string name="essai_texte">USB debugging stays on: a PC can remove PrP. Do not use it for the real lock.</string>
@@ -185,6 +185,8 @@
     <string name="raison_mot_cle">explicit site name</string>
     <string name="raison_appris">site recognised by its images</string>
     <string name="raison_texte">site recognised by its content (page text)</string>
+    <string name="raison_recherche">search for adult content</string>
+    <string name="raison_contenu">adult content in the app</string>
     <string name="oublier_appris">Forget these sites</string>
     <string name="oublier_appris_texte">Sites blocked because of their images will open again (their images stay blurred).</string>
     <string name="raison_liste">adult site list</string>

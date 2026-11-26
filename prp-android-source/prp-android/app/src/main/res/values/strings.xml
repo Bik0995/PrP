@@ -3,7 +3,7 @@
 <resources>
     <string name="app_name" translatable="false">PrP</string>
     <string name="garde_nom">PrP – Garde</string>
-    <string name="garde_description">Lit l\'adresse affichée par les navigateurs pour bloquer les sites pour adultes et masque les images explicites à l\'écran. Rien n\'est enregistré ni envoyé : tout se fait sur le téléphone.</string>
+    <string name="garde_description">Lit l\'adresse affichée par les navigateurs pour bloquer les sites pour adultes, bloque les recherches pour adultes dans les applications et masque les images explicites à l\'écran. Rien n\'est enregistré ni envoyé : tout se fait sur le téléphone.</string>
     <string name="sous_titre">Blocage du contenu adulte, verrouillé dans le temps</string>
     <string name="essai_titre">Version d\'essai</string>
     <string name="essai_texte">Le débogage USB reste ouvert : un PC peut retirer PrP. À ne pas utiliser pour le vrai verrou.</string>
@@ -186,6 +186,8 @@
     <string name="raison_mot_cle">nom de site explicite</string>
     <string name="raison_appris">site reconnu à ses images</string>
     <string name="raison_texte">site reconnu à son contenu (texte de la page)</string>
+    <string name="raison_recherche">recherche de contenu pour adultes</string>
+    <string name="raison_contenu">contenu pour adultes dans l\'application</string>
     <string name="oublier_appris">Oublier ces sites</string>
     <string name="oublier_appris_texte">Les sites bloqués d\'après leurs images seront de nouveau ouverts (leurs images resteront floutées).</string>
     <string name="raison_liste">liste de sites pour adultes</string>

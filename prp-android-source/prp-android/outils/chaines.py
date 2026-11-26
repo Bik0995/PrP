@@ -3,9 +3,9 @@ import os
 R = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "main", "res")
 S = {
 "garde_nom": ("PrP – Garde", "PrP – Guard", "PrP – Защита"),
-"garde_description": ("Lit l'adresse affichée par les navigateurs pour bloquer les sites pour adultes et masque les images explicites à l'écran. Rien n'est enregistré ni envoyé : tout se fait sur le téléphone.",
-  "Reads the address shown by browsers to block adult sites and masks explicit images on screen. Nothing is stored or sent: everything happens on the phone.",
-  "Читает адрес в браузерах, чтобы блокировать сайты для взрослых, и закрывает откровенные изображения на экране. Ничего не сохраняется и не отправляется: всё происходит на телефоне."),
+"garde_description": ("Lit l'adresse affichée par les navigateurs pour bloquer les sites pour adultes, bloque les recherches pour adultes dans les applications et masque les images explicites à l'écran. Rien n'est enregistré ni envoyé : tout se fait sur le téléphone.",
+  "Reads the address shown by browsers to block adult sites, blocks adult searches in apps and masks explicit images on screen. Nothing is stored or sent: everything happens on the phone.",
+  "Читает адрес в браузерах, чтобы блокировать сайты для взрослых, блокирует поиск такого контента в приложениях и закрывает откровенные изображения на экране. Ничего не сохраняется и не отправляется: всё происходит на телефоне."),
 "sous_titre": ("Blocage du contenu adulte, verrouillé dans le temps", "Adult content blocker, locked in time", "Блокировка контента для взрослых с замком по времени"),
 "essai_titre": ("Version d'essai", "Trial version", "Пробная версия"),
 "essai_texte": ("Le débogage USB reste ouvert : un PC peut retirer PrP. À ne pas utiliser pour le vrai verrou.",
@@ -256,6 +256,8 @@ S = {
 "raison_mot_cle": ("nom de site explicite", "explicit site name", "откровенное название сайта"),
 "raison_appris": ("site reconnu à ses images", "site recognised by its images", "сайт распознан по изображениям"),
 "raison_texte": ("site reconnu à son contenu (texte de la page)", "site recognised by its content (page text)", "сайт распознан по содержимому (тексту страницы)"),
+"raison_recherche": ("recherche de contenu pour adultes", "search for adult content", "поиск контента для взрослых"),
+"raison_contenu": ("contenu pour adultes dans l'application", "adult content in the app", "контент для взрослых в приложении"),
 "oublier_appris": ("Oublier ces sites", "Forget these sites", "Забыть эти сайты"),
 "oublier_appris_texte": ("Les sites bloqués d'après leurs images seront de nouveau ouverts (leurs images resteront floutées).",
   "Sites blocked because of their images will open again (their images stay blurred).",

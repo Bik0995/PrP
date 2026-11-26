@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -131,6 +132,7 @@ class GardeService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             (paquet != packageName || event.className?.toString()?.endsWith("Activity") == true)
         ) detection?.surPaquet(paquet)
+        if (paquet in APPLIS && paquet !in navigateurs) { surAppli(event, paquet); return }
         if (filtre == null || paquet == packageName || paquet !in navigateurs) return
         // Lecture du texte de la page : au plus une fois par seconde et demie, après les changements.
         if (!lecturePrevue) {
@@ -182,18 +184,7 @@ class GardeService : AccessibilityService() {
         val h = hoteVu ?: return
         if (SystemClock.uptimeMillis() - instantVu > 20_000L) return // adresse trop ancienne : pas sûr du site
         if (AnalyseTexte.estInformation(h) || Filtre.estInstitution(h)) return
-        val sb = StringBuilder()
-        val pile = ArrayDeque<AccessibilityNodeInfo>()
-        pile.add(racine)
-        var vus = 0
-        while (pile.isNotEmpty() && vus < 2500 && sb.length < 30_000) {
-            val n = pile.removeLast()
-            vus++
-            n.text?.let { if (it.length < 400) sb.append(it).append(' ') }
-            n.contentDescription?.let { if (it.length < 400) sb.append(it).append(' ') }
-            for (i in n.childCount - 1 downTo 0) n.getChild(i)?.let { pile.add(it) }
-        }
-        val texte = sb.toString()
+        val texte = lireNoeuds(racine)
         if (texte == derniereLecture) return
         derniereLecture = texte
         val r = AnalyseTexte.evaluer(texte)
@@ -206,6 +197,102 @@ class GardeService : AccessibilityService() {
             e.sitesAppris = e.sitesAppris + appris
         }
         principal.post { bloquer(paquet, Verdict(true, h, Raison.TEXTE)) }
+    }
+
+    // ---------------------------------------------------------------- applications
+    // Réseaux sociaux, messageries, vidéos : une recherche pour adultes est refusée dès qu'elle
+    // est tapée, et un écran de résultats rempli de vocabulaire pornographique est quitté.
+    // L'application elle-même n'est jamais bloquée.
+    private var lectureAppliPrevue = false
+    @Volatile private var appliLue = ""
+    private var derniereLectureAppli = ""
+    private var dernierBlocageAppli = 0L
+    private val lectureAppli = Runnable {
+        lectureAppliPrevue = false
+        val p = appliLue
+        if (lectureEnCours.compareAndSet(false, true)) lecteur.execute {
+            try { lireAppli(p) } catch (e: Exception) { } finally { lectureEnCours.set(false) }
+        }
+    }
+
+    private fun surAppli(event: AccessibilityEvent, paquet: String) {
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+            val n = event.source ?: return
+            if (!estRecherche(n)) return
+            val q = (n.text ?: event.text.joinToString(" ")).toString()
+            if (!AnalyseTexte.rechercheAdulte(q)) return
+            try { // on efface la recherche
+                val b = Bundle()
+                b.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
+                n.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, b)
+            } catch (e: Exception) { }
+            bloquerAppli(paquet, Raison.RECHERCHE)
+            return
+        }
+        appliLue = paquet
+        if (!lectureAppliPrevue) {
+            lectureAppliPrevue = true
+            principal.postDelayed(lectureAppli, 1_500L)
+        }
+    }
+
+    /** Champ de recherche (et non zone de message) : reconnu à son identifiant ou à son indication. */
+    private fun estRecherche(n: AccessibilityNodeInfo): Boolean {
+        val classe = n.className?.toString().orEmpty()
+        if (!n.isEditable && "EditText" !in classe && "Search" !in classe) return false
+        if ("Search" in classe) return true
+        val id = n.viewIdResourceName.orEmpty().lowercase()
+        if ("search" in id || "query" in id) return true
+        val indice = listOfNotNull(
+            if (Build.VERSION.SDK_INT >= 26) n.hintText else null, n.contentDescription,
+        ).joinToString(" ").lowercase()
+        return MOTS_RECHERCHE.any { it in indice }
+    }
+
+    private fun lireAppli(paquet: String) {
+        val racine = try { rootInActiveWindow } catch (e: Exception) { null } ?: return
+        if (racine.packageName?.toString() != paquet) return
+        val texte = lireNoeuds(racine)
+        if (texte == derniereLectureAppli) return
+        derniereLectureAppli = texte
+        if (AnalyseTexte.evaluer(texte).adulte) principal.post { bloquerAppli(paquet, Raison.CONTENU) }
+    }
+
+    private fun lireNoeuds(racine: AccessibilityNodeInfo): String {
+        val sb = StringBuilder()
+        val pile = ArrayDeque<AccessibilityNodeInfo>()
+        pile.add(racine)
+        var vus = 0
+        while (pile.isNotEmpty() && vus < 2500 && sb.length < 30_000) {
+            val n = pile.removeLast()
+            vus++
+            n.text?.let { if (it.length < 400) sb.append(it).append(' ') }
+            n.contentDescription?.let { if (it.length < 400) sb.append(it).append(' ') }
+            for (i in n.childCount - 1 downTo 0) n.getChild(i)?.let { pile.add(it) }
+        }
+        return sb.toString()
+    }
+
+    /** Revient à l'écran précédent de l'application et affiche « Contenu bloqué ». */
+    private fun bloquerAppli(paquet: String, raison: Raison) {
+        val maintenant = SystemClock.uptimeMillis()
+        if (maintenant - dernierBlocageAppli < 1500L) return
+        dernierBlocageAppli = maintenant
+        derniereLectureAppli = ""
+        performGlobalAction(GLOBAL_ACTION_BACK)
+        val nom = try {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(paquet, 0)).toString()
+        } catch (e: Exception) { paquet }
+        principal.postDelayed({
+            try {
+                startActivity(
+                    Intent(this, BloqueActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        .putExtra(BloqueActivity.HOTE, nom)
+                        .putExtra(BloqueActivity.RAISON, raison.name),
+                )
+            } catch (e: Exception) { }
+        }, 300L)
     }
 
     // ---------------------------------------------------------------- apprentissage
@@ -367,6 +454,27 @@ class GardeService : AccessibilityService() {
 
     companion object {
         @Volatile var instance: GardeService? = null
+
+        /** Applications où l'on cherche et voit du contenu : réseaux sociaux, messageries, vidéos. */
+        val APPLIS = setOf(
+            "com.facebook.katana", "com.facebook.lite", "com.facebook.orca", "com.instagram.android",
+            "com.instagram.lite", "com.instagram.barcelona", "org.telegram.messenger",
+            "org.telegram.messenger.web", "org.telegram.plus", "org.thunderdog.challegram",
+            "com.vkontakte.android", "com.vk.im", "ru.ok.android", "com.twitter.android",
+            "com.zhiliaoapp.musically", "com.ss.android.ugc.trill", "com.reddit.frontpage",
+            "com.pinterest", "com.snapchat.android", "com.tumblr", "com.google.android.youtube",
+            "com.google.android.googlequicksearchbox", "ru.yandex.searchplugin", "com.discord",
+            "com.bsky.app", "ru.rutube.app", "ru.dzen.app", "com.whatsapp", "com.imo.android.imoim",
+            "jp.naver.line.android", "com.kakao.talk", "com.tencent.mm", "com.sina.weibo",
+            "tv.danmaku.bili", "com.xingin.xhs", "com.ss.android.ugc.aweme", "com.twitch.android.app",
+        )
+
+        /** Indication d'un champ de recherche, dans les langues courantes. */
+        val MOTS_RECHERCHE = listOf(
+            "search", "recherch", "поиск", "найти", "искать", "buscar", "busca", "pesquisar", "suche",
+            "cerca", "ricerca", "szukaj", "zoeken", "بحث", "חיפוש", "搜索", "搜尋", "検索", "검색",
+            "खोज", "ค้นหา", "tìm", "cari", "пошук",
+        )
         const val PAGE_SURE = "https://www.google.com/"
 
         /** Applications de réglages où l'on peut arrêter, désactiver ou désinstaller PrP. */

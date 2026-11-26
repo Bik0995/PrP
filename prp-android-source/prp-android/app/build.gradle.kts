@@ -11,8 +11,8 @@ android {
         applicationId = "org.prp.android"
         minSdk = 29          // Android 10 : DNS privé imposé par le propriétaire de l'appareil
         targetSdk = 34
-        versionCode = 17
-        versionName = "1.0-a17"
+        versionCode = 18
+        versionName = "1.0-a18"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 

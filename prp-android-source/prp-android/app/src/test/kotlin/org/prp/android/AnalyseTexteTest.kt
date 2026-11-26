@@ -40,6 +40,16 @@ class AnalyseTexteTest {
             "maduras. La corrida de toros. Un pájaro. On abaisse le prix. Coroas de ouro."))
     }
 
+    @Test fun recherchesDansLesApplications() {
+        val r = AnalyseTexte::rechercheAdulte
+        for (q in listOf("porn", "porno russe", "порно", "xxx video", "hentai", "milf", "سكس", "エロ動画",
+            "sex video", "free sex", "nude girls", "сиськи секс", "fuck girls nude", "pornhub", "sexo y desnudas"))
+            assertTrue(q, r(q))
+        for (q in listOf("éducation sexuelle", "sex education", "plage nudiste", "fuck you song", "страхование",
+            "recette de crêpes", "Essex football", "canale 5", "la corrida", "bikini 2026", "gay pride paris"))
+            assertFalse(q, r(q))
+    }
+
     @Test fun sitesDInformation() {
         assertTrue(AnalyseTexte.estInformation("fr.wikipedia.org"))
         assertTrue(AnalyseTexte.estInformation("www.bbc.co.uk"))

@@ -8,6 +8,8 @@ enum class Raison(val libelle: String) {
     MOTEUR("moteur de recherche impossible à filtrer"),
     APPRIS("site reconnu à ses images"),
     TEXTE("site reconnu à son contenu"),
+    RECHERCHE("recherche de contenu pour adultes"),
+    CONTENU("contenu pour adultes dans une application"),
 }
 
 data class Verdict(val bloque: Boolean, val hote: String = "", val raison: Raison? = null)
