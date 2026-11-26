@@ -59,19 +59,6 @@ object Classement {
         return i
     }
 
-    /**
-     * Floute seulement si la catégorie la plus probable est elle-même visée (Porn ou Hentai ;
-     * Sexy en plus en mode enfant) ET que le score dépasse le seuil. Un morceau d'écran
-     * ([tuile]) demande un peu plus de certitude, car il coupe souvent les personnes.
-     */
-    fun aFlouter(p: FloatArray, sensibilite: Int, enfant: Boolean, tuile: Boolean = false): Boolean {
-        val d = dominante(p)
-        val visee = d == PORNO || d == HENTAI || (enfant && d == SEXY)
-        if (!visee) return false
-        val s = (seuil(sensibilite) + if (tuile) 0.05f else 0f).coerceAtMost(0.97f)
-        return score(p, enfant) >= s
-    }
-
     /** Catégorie la plus probable, pour l'écran « Détails ». */
     fun resume(p: FloatArray): String {
         val i = dominante(p)
