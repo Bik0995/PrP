@@ -301,7 +301,24 @@ class Detection(
     /** Images jugées sans problème récemment (empreinte -> instant), pour ne pas les réanalyser. */
     private val surs = LinkedHashMap<String, Long>()
 
-    private fun cleSure(n: AccessibilityNodeInfo, z: Zone) = empreinte(n) + "|" + z.l.toInt() + "x" + z.ht.toInt()
+    /**
+     * Clé d'une image pour la mémoire des images sûres : empreinte + position + taille. Une
+     * image sans identité propre (cas des pages web : pas de description ni d'identifiant)
+     * n'a pas de clé, car toutes les miniatures d'une page se ressembleraient.
+     */
+    private fun cleSure(n: AccessibilityNodeInfo, z: Zone): String? {
+        if (n.contentDescription.isNullOrBlank() && n.viewIdResourceName.isNullOrBlank()) return null
+        return empreinte(n) + "|" + z.g.toInt() + "," + z.h.toInt() + "|" + z.l.toInt() + "x" + z.ht.toInt()
+    }
+
+    /** Position et taille : identifie une image sur l'écran actuel (pour analyser toutes les images, par lots). */
+    private fun clePosition(z: Zone) = "" + z.g.toInt() + "," + z.h.toInt() + "|" + z.l.toInt() + "x" + z.ht.toInt()
+
+    /** Images déjà jugées sûres sur l'écran actuel ; vidé dès que l'écran change. */
+    private val vusEcran = HashSet<String>()
+
+    /** Il reste des images à analyser sur cet écran (plus de MAX_CLASSIF) ou un soupçon à confirmer. */
+    @Volatile private var aContinuer = false
 
     private fun estVideo(n: AccessibilityNodeInfo): Boolean {
         val c = n.className?.toString() ?: return false
@@ -464,7 +481,8 @@ class Detection(
             val signature = Pretraitement.signature(pixels, sl, sh)
             val change = Pretraitement.difference(derniereSignature, signature) >= SEUIL_CHANGEMENT
             derniereSignature = signature
-            if (!change) {
+            if (change) vusEcran.clear()
+            if (!change && !aContinuer) {
                 DiagDetection.dernier = Analyse.INCHANGE
                 return
             }
@@ -479,6 +497,7 @@ class Detection(
 
             // ce qui sera analysé : chaque image déclarée, sinon l'écran entier
             val aAnalyser = ArrayList<Triple<Zone, Int, String?>>()   // zone, indice d'image, clé « sûre »
+            var resteImages = false
             val candidats = Classement.candidats(images.map { it.second }, lc, hc)
             // une grande image déclarée couvre l'écran ; sinon (icônes seulement), la vidéo n'est pas déclarée
             val grande = candidats.any { images[it].second.aire >= 0.25f * lc * hc }
@@ -488,8 +507,9 @@ class Detection(
                     if (cibles.any { it.noeud == n && it.visible }) continue      // déjà floutée
                     val cle = if (estVideo(n)) null else cleSure(n, z)
                     if (cle != null && synchronized(surs) { cle in surs }) continue
+                    if (!estVideo(n) && clePosition(z) in vusEcran) continue        // déjà jugée sûre sur cet écran
+                    if (aAnalyser.size >= MAX_CLASSIF) { resteImages = true; break }
                     aAnalyser.add(Triple(z, i, cle))
-                    if (aAnalyser.size >= MAX_CLASSIF) break
                 }
             }
             if (!grande) {
@@ -534,15 +554,18 @@ class Detection(
                     } else {
                         relancer = true
                     }
-                } else if (cle != null) {
-                    synchronized(surs) {
+                } else {
+                    if (i >= 0 && !estVideo(images[i].first)) vusEcran.add(clePosition(z))
+                    if (cle != null) synchronized(surs) {
                         surs[cle] = maintenant
                         while (surs.size > MAX_SURS) surs.remove(surs.keys.first())
                     }
                 }
             }
             // un soupçon attend sa confirmation : la prochaine analyse a lieu même si l'écran n'a pas changé
-            if (relancer) derniereSignature = null
+            // la prochaine analyse a lieu même si l'écran n'a pas changé : soupçon à confirmer,
+            // ou images pas encore vues (plus de MAX_CLASSIF sur l'écran)
+            aContinuer = relancer || resteImages
             DiagDetection.analyses++
             DiagDetection.dernierMs = (System.nanoTime() - debut) / 1_000_000L
             DiagDetection.dernierDetail = details.joinToString()
