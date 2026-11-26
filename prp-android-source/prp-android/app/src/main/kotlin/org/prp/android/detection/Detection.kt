@@ -287,7 +287,8 @@ class Detection(
             val pl = maxOf(3, l / 18)
             val ph = maxOf(3, h / 18)
             val petit = Bitmap.createScaledBitmap(morceau, pl, ph, true)
-            if (petit !== morceau) morceau.recycle()
+            // pour l'écran entier, createBitmap renvoie la capture elle-même : ne pas la libérer
+            if (petit !== morceau && morceau !== capture) morceau.recycle()
             val px = IntArray(pl * ph)
             petit.getPixels(px, 0, pl, 0, 0, pl, ph)
             petit.recycle()
@@ -344,7 +345,8 @@ class Detection(
         if (l < 16 || h < 16) return null
         val morceau = Bitmap.createBitmap(capture, x, y, l, h)
         val reduit = Bitmap.createScaledBitmap(morceau, c, c, true)
-        if (morceau !== reduit) morceau.recycle()
+        // pour l'écran entier, createBitmap renvoie la capture elle-même : ne pas la libérer
+        if (morceau !== reduit && morceau !== capture) morceau.recycle()
         val px = IntArray(c * c)
         reduit.getPixels(px, 0, c, 0, 0, c, c)
         reduit.recycle()
