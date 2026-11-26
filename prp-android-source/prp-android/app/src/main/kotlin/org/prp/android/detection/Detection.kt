@@ -290,12 +290,22 @@ class Detection(
         return c.contains("Video") || c.endsWith("TextureView") || c.endsWith("SurfaceView")
     }
 
-    /** Découpe une région de la capture et la ramène à 224 x 224 pixels pour le modèle. */
-    private fun pixelsRegion(capture: Bitmap, z: Zone): IntArray? {
-        val x = z.g.toInt().coerceIn(0, capture.width - 1)
-        val y = z.h.toInt().coerceIn(0, capture.height - 1)
-        val l = (z.d.toInt() - x).coerceAtMost(capture.width - x)
-        val h = (z.b.toInt() - y).coerceAtMost(capture.height - y)
+    /**
+     * Découpe une région de la capture et la ramène à 224 x 224 pixels pour le modèle.
+     * [centre] : seulement le carré central de la région (deuxième avis, sans déformation).
+     */
+    private fun pixelsRegion(capture: Bitmap, z: Zone, centre: Boolean = false): IntArray? {
+        var x = z.g.toInt().coerceIn(0, capture.width - 1)
+        var y = z.h.toInt().coerceIn(0, capture.height - 1)
+        var l = (z.d.toInt() - x).coerceAtMost(capture.width - x)
+        var h = (z.b.toInt() - y).coerceAtMost(capture.height - y)
+        if (centre) {
+            val cote = (minOf(l, h) * 0.9f).toInt()
+            x += (l - cote) / 2
+            y += (h - cote) / 2
+            l = cote
+            h = cote
+        }
         if (l < 16 || h < 16) return null
         val c = Classement.COTE
         val morceau = Bitmap.createBitmap(capture, x, y, l, h)
@@ -458,7 +468,11 @@ class Detection(
             for ((z, i, cle) in aAnalyser) {
                 val px = pixelsRegion(cap, z) ?: continue
                 val p = m.classer(px)
-                if (Classement.aFlouter(p, sens, enfant)) {
+                val tuile = i < 0
+                // deuxième avis sur le carré central : les deux doivent être d'accord
+                val confirme = Classement.aFlouter(p, sens, enfant, tuile) &&
+                    (pixelsRegion(cap, z, centre = true)?.let { Classement.aFlouter(m.classer(it), sens, enfant, tuile) } ?: true)
+                if (confirme) {
                     val d = Classement.resume(p)
                     confirmees.add(Confirmee(z, i, d))
                     details.add(d)

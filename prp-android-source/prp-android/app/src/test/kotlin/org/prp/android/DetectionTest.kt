@@ -13,16 +13,18 @@ class DetectionTest {
         floatArrayOf(dessin, hentai, neutre, porno, sexy)
 
     @Test fun pornographieFloutee() {
-        assertTrue(Classement.aFlouter(p(0f, 0f, 0.1f, 0.85f, 0.05f), 1, false))
-        assertTrue(Classement.aFlouter(p(0.1f, 0.7f, 0.1f, 0.05f, 0.05f), 1, false))   // hentaï
-        assertTrue(Classement.aFlouter(p(0f, 0.3f, 0.1f, 0.35f, 0.25f), 1, false))     // les deux ensemble
+        assertTrue(Classement.aFlouter(p(0f, 0f, 0.05f, 0.9f, 0.05f), 1, false))
+        assertTrue(Classement.aFlouter(p(0.1f, 0.82f, 0.05f, 0.02f, 0.01f), 1, false))  // hentaï
+        assertTrue(Classement.aFlouter(p(0f, 0.3f, 0.05f, 0.55f, 0.1f), 1, false))      // les deux ensemble
     }
 
-    @Test fun maillotsEtNeutreLaisses() {
-        // « Sexy » (maillot, sous-vêtements, torse nu) : jamais flouté par défaut
+    @Test fun peauNueSansSexeLaissee() {
+        // bras, jambes, pieds, maillots : « Sexy » ou « Neutral » dominants, jamais floutés par défaut
         assertFalse(Classement.aFlouter(p(0f, 0f, 0.05f, 0.05f, 0.9f), 1, false))
-        assertFalse(Classement.aFlouter(p(0f, 0f, 0.05f, 0.05f, 0.9f), 2, false))
-        assertFalse(Classement.aFlouter(p(0.05f, 0f, 0.9f, 0.03f, 0.02f), 0, false))
+        assertFalse(Classement.aFlouter(p(0f, 0f, 0.05f, 0.05f, 0.9f), 0, false))
+        assertFalse(Classement.aFlouter(p(0f, 0f, 0.45f, 0.40f, 0.15f), 0, false))      // doute : neutre dominant
+        assertFalse(Classement.aFlouter(p(0f, 0f, 0.1f, 0.45f, 0.45f), 1, false))       // doute : porno < seuil
+        assertFalse(Classement.aFlouter(p(0f, 0f, 0.1f, 0.70f, 0.2f), 1, false))        // 0,70 < 0,80
         assertFalse(Classement.aFlouter(p(0.9f, 0.05f, 0.05f, 0f, 0f), 1, false))       // dessin ordinaire
     }
 
@@ -32,14 +34,15 @@ class DetectionTest {
     }
 
     @Test fun sensibilite() {
-        val limite = p(0f, 0f, 0.48f, 0.52f, 0f)
-        assertTrue(Classement.aFlouter(limite, 0, false))     // stricte
-        assertFalse(Classement.aFlouter(limite, 1, false))    // normale
-        assertFalse(Classement.aFlouter(limite, 2, false))    // souple
+        val limite = p(0f, 0f, 0.28f, 0.72f, 0f)
+        assertTrue(Classement.aFlouter(limite, 0, false))     // stricte 0,65
+        assertFalse(Classement.aFlouter(limite, 1, false))    // normale 0,80
+        assertFalse(Classement.aFlouter(limite, 2, false))    // souple 0,90
         assertTrue(Classement.seuil(0) < Classement.seuil(1) && Classement.seuil(1) < Classement.seuil(2))
-        // stricte : « Sexy » compte à moitié
-        assertTrue(Classement.aFlouter(p(0f, 0f, 0.1f, 0.25f, 0.65f), 0, false))
-        assertFalse(Classement.aFlouter(p(0f, 0f, 0.1f, 0.25f, 0.65f), 1, false))
+        // un morceau d'écran demande plus de certitude
+        val fort = p(0f, 0f, 0.18f, 0.82f, 0f)
+        assertTrue(Classement.aFlouter(fort, 1, false, tuile = false))
+        assertFalse(Classement.aFlouter(fort, 1, false, tuile = true))
     }
 
     @Test fun resume() {

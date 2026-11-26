@@ -16,28 +16,38 @@ object Classement {
     const val COTE = 224
 
     /**
-     * Score de l'image : pornographie et hentaï. La catégorie « Sexy » (maillots, sous-vêtements,
-     * torses nus) ne compte pas, sauf en mode enfant ; en sensibilité stricte, elle compte à moitié.
+     * Score de l'image : pornographie et hentaï seulement. « Sexy » (maillots, sous-vêtements,
+     * peau nue sans acte sexuel : bras, jambes, pieds, torses) ne compte qu'en mode enfant.
      */
-    fun score(p: FloatArray, sensibilite: Int, enfant: Boolean): Float {
-        val poidsSexy = when {
-            enfant -> 1f
-            sensibilite == 0 -> 0.5f
-            else -> 0f
-        }
-        return p[PORNO] + p[HENTAI] + poidsSexy * p[SEXY]
+    fun score(p: FloatArray, enfant: Boolean): Float =
+        p[PORNO] + p[HENTAI] + (if (enfant) p[SEXY] else 0f)
+
+    /** Sensibilité : 0 = stricte, 1 = normale, 2 = souple. Seuils hauts : la peau seule ne suffit pas. */
+    fun seuil(sensibilite: Int): Float = when (sensibilite) { 0 -> 0.65f; 2 -> 0.90f; else -> 0.80f }
+
+    /** Catégorie la plus probable. */
+    fun dominante(p: FloatArray): Int {
+        var i = 0
+        for (k in 1 until NB) if (p[k] > p[i]) i = k
+        return i
     }
 
-    /** Sensibilité : 0 = stricte (floute plus facilement), 1 = normale, 2 = souple. */
-    fun seuil(sensibilite: Int): Float = when (sensibilite) { 0 -> 0.45f; 2 -> 0.75f; else -> 0.60f }
-
-    fun aFlouter(p: FloatArray, sensibilite: Int, enfant: Boolean): Boolean =
-        score(p, sensibilite, enfant) >= seuil(sensibilite)
+    /**
+     * Floute seulement si la catégorie la plus probable est elle-même visée (Porn ou Hentai ;
+     * Sexy en plus en mode enfant) ET que le score dépasse le seuil. Un morceau d'écran
+     * ([tuile]) demande un peu plus de certitude, car il coupe souvent les personnes.
+     */
+    fun aFlouter(p: FloatArray, sensibilite: Int, enfant: Boolean, tuile: Boolean = false): Boolean {
+        val d = dominante(p)
+        val visee = d == PORNO || d == HENTAI || (enfant && d == SEXY)
+        if (!visee) return false
+        val s = (seuil(sensibilite) + if (tuile) 0.05f else 0f).coerceAtMost(0.97f)
+        return score(p, enfant) >= s
+    }
 
     /** Catégorie la plus probable, pour l'écran « Détails ». */
     fun resume(p: FloatArray): String {
-        var i = 0
-        for (k in 1 until NB) if (p[k] > p[i]) i = k
+        val i = dominante(p)
         return "${NOMS[i]} ${(p[i] * 100).toInt()}%"
     }
 
