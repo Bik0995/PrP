@@ -37,8 +37,8 @@ class ListeSitesTest {
         val l = f.inputStream().use { ListeSites.charger(it) }
         assertTrue(l.taille > 1_000_000)
         val filtre = Filtre(l)
-        assertEquals(Raison.LISTE, filtre.verifierHote("chaturbate.com").raison)
-        assertEquals(Raison.LISTE, filtre.verifierHote("fr.chaturbate.com").raison)
+        assertEquals(Raison.LISTE, filtre.verifierHote("qorno.com").raison)
+        assertEquals(Raison.LISTE, filtre.verifierHote("fr.qorno.com").raison)
         // sites sans mot-clé dans le nom, dans plusieurs langues : trouvés par la liste
         for (h in listOf("qorno.com", "beboo.ru", "huyamba.name", "sosalkino.app", "arabxn.com", "x3arabi.com",
             "shahvani.com", "tokyomotion.net", "jable.tv", "hitomi.la", "caribbeancom.com", "91cg1.com",
