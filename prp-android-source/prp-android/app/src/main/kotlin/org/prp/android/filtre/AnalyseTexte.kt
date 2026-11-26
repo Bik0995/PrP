@@ -44,7 +44,7 @@ object AnalyseTexte {
             "phim sex", "phim heo", "bokep", "افلام سكس"),
         f("nu explicite", "nude girls", "naked girls", "nude video", "голые девушки", "голая девушка",
             "chicas desnudas", "mulheres peladas", "filles nues"),
-        f("anal", "anal sex", "sexo anal", "анальн", "anale", "анал "),
+        f("anal", "anal sex", "anal video", "anal hd", "anal girl", "anal teen", "sexo anal", "анальн", "anale", "анал "),
         f("vulgaire", "fuck", "fucked", "fucking", "pussy", "трах", "ебл", "ебёт", "ебет", "follando", "cogiendo",
             "transando", "scopata", "salope", "ficken", "fickt", "sikiş", "siktir", "做爱", "섹스",
             "ngentot", "memek", "चुदाई", "เย็ด", "نيك", "شرموط", "منيوك"),
