@@ -67,7 +67,11 @@ class Detection(
         val empreinte: String,
         var visible: Boolean = true,
         val etiquette: String? = null,
+        val creee: Long = SystemClock.uptimeMillis(),
     )
+
+    /** Dernier retrait d'un flou d'écran entier : s'il revient vite, un seul jugement suffit. */
+    @Volatile private var dernierEcranRetire = 0L
 
     /** Version d'essai : une étiquette sur chaque flou dit pourquoi il est apparu. */
     private val essai = (service.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -386,8 +390,20 @@ class Detection(
 
     private fun tic() {
         majCibles()
+        // Un flou d'écran entier cache ce qu'il faudrait revoir (la capture le contient) : il est
+        // retiré au bout de DUREE_ECRAN_MS, l'écran est aussitôt réanalysé, et le flou revient en
+        // un seul jugement si la scène est toujours pornographique.
+        val t = SystemClock.uptimeMillis()
+        if (cibles.removeAll { it.noeud == null && t - it.creee > DUREE_ECRAN_MS }) {
+            dernierEcranRetire = t
+            derniereSignature = null
+            rafraichirVue()
+            principal.postDelayed({ if (actif && !enCours && classifieur != null && ecranUtilisable()) capturer() }, 120L)
+            return
+        }
         rafraichirVue()
         if (enCours || classifieur == null || !ecranUtilisable()) return
+        if (cibles.any { it.noeud == null && it.visible }) return     // écran déjà flouté : rien à voir dessous
         capturer()
     }
 
@@ -461,10 +477,13 @@ class Detection(
             val maintenant = SystemClock.uptimeMillis()
             synchronized(surs) { surs.entries.removeAll { maintenant - it.value > DUREE_SUR_MS } }
 
-            // ce qui sera analysé : chaque image déclarée, sinon des morceaux d'écran
+            // ce qui sera analysé : chaque image déclarée, sinon l'écran entier
             val aAnalyser = ArrayList<Triple<Zone, Int, String?>>()   // zone, indice d'image, clé « sûre »
-            if (images.isNotEmpty()) {
-                for (i in Classement.candidats(images.map { it.second }, lc, hc)) {
+            val candidats = Classement.candidats(images.map { it.second }, lc, hc)
+            // une grande image déclarée couvre l'écran ; sinon (icônes seulement), la vidéo n'est pas déclarée
+            val grande = candidats.any { images[it].second.aire >= 0.25f * lc * hc }
+            if (candidats.isNotEmpty()) {
+                for (i in candidats) {
                     val (n, z) = images[i]
                     if (cibles.any { it.noeud == n && it.visible }) continue      // déjà floutée
                     val cle = if (estVideo(n)) null else cleSure(n, z)
@@ -472,8 +491,12 @@ class Detection(
                     aAnalyser.add(Triple(z, i, cle))
                     if (aAnalyser.size >= MAX_CLASSIF) break
                 }
-            } else {
-                for (z in Classement.tuiles(lc, hc)) aAnalyser.add(Triple(z, -1, null))
+            }
+            if (!grande) {
+                // l'application ne déclare pas ses images (vidéos de Facebook, Shorts, Reels…) :
+                // l'écran est jugé en entier, comme les modèles ont appris à le faire. Des morceaux
+                // découpés montreraient des gros plans de peau, que les modèles prennent pour du porno.
+                aAnalyser.add(Triple(Zone(0f, 0f, lc, hc), -1, null))
             }
 
             val debut = System.nanoTime()
@@ -481,9 +504,10 @@ class Detection(
             val details = ArrayList<String>()
             var relancer = false
             for ((z, i, cle) in aAnalyser) {
+                if (i < 0 && confirmees.isNotEmpty()) continue   // une image précise est déjà floutée
                 val px = pixelsRegion(cap, z) ?: continue
                 val p = m.classer(px)
-                val tuile = i < 0
+                val tuile = false
                 // deuxième avis, d'un autre modèle : les deux doivent être d'accord
                 var nsfw = 0f
                 val confirme = Classement.suspect(p, sens, enfant) &&
@@ -494,15 +518,16 @@ class Detection(
                 if (confirme) {
                     // confirmation dans le temps : il faut deux jugements de suite (≤ 5 s)
                     val cleSoupcon = if (i >= 0) empreinte(images[i].first) + "|" + z.l.toInt() + "x" + z.ht.toInt()
-                    else "tuile|" + z.g.toInt() + "," + z.h.toInt()
-                    val deja = synchronized(soupcons) {
+                    else "ecran"
+                    val retour = i < 0 && maintenant - dernierEcranRetire < DUREE_ECRAN_MS + 2_000L
+                    val deja = retour || synchronized(soupcons) {
                         soupcons.entries.removeAll { maintenant - it.value > 5_000L }
                         val v = soupcons.remove(cleSoupcon) != null
                         if (!v) soupcons[cleSoupcon] = maintenant
                         v
                     }
                     if (deja) {
-                        val d = (if (i >= 0) "image" else "morceau d'écran") + " · " + Classement.resume(p) +
+                        val d = (if (i >= 0) "image" else "écran entier") + " · " + Classement.resume(p) +
                             " · NSFW ${(nsfw * 100).toInt()}%"
                         confirmees.add(Confirmee(z, i, d))
                         details.add(d)
@@ -550,6 +575,8 @@ class Detection(
         const val MAX_NOEUDS = 2500
         const val MAX_CIBLES = 40
         const val MAX_CLASSIF = 6
+        /** Durée d'un flou d'écran entier avant nouvelle vérification. */
+        const val DUREE_ECRAN_MS = 4_000L
         const val MAX_SURS = 300
         const val DUREE_SUR_MS = 10_000L
         const val MODELE = "nsfwjs_mobilenet_v2.onnx"
